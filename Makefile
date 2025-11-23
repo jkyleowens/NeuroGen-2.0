@@ -47,6 +47,7 @@ MAIN_SRC = src/main.cpp
 # Interface stubs (if needed by older code, though mainly unused in Phase 2 main)
 INTERFACE_SRCS = src/interfaces/TokenEmbedding.cpp \
                  src/interfaces/OutputDecoder.cpp \
+                 src/interfaces/GPUDecoder.cu \
                  src/interfaces/TrainingLoop.cpp
 
 # Object files
@@ -88,6 +89,7 @@ LINK_OBJS = src/engine/NeuralEngine.o \
             src/persistence/CheckpointFormat.o \
             src/interfaces/TokenEmbedding.o \
             src/interfaces/OutputDecoder.o \
+            src/interfaces/GPUDecoder.o \
             src/interfaces/TrainingLoop.o
 
 # Build executable

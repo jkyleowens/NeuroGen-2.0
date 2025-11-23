@@ -16,9 +16,13 @@ BrainOrchestrator::BrainOrchestrator(const Config& config)
       tokens_processed_(0),
       average_reward_(0.0f),
       should_generate_output_(false),
-      time_since_consolidation_(0.0f) {
+      time_since_consolidation_(0.0f),
+      processing_mode_(config.processing_mode) {
     
     std::cout << "🧠 Initializing Brain Orchestrator..." << std::endl;
+    std::cout << "   Processing Mode: " 
+              << (processing_mode_ == ProcessingMode::PIPELINED ? "PIPELINED" : "SEQUENTIAL")
+              << std::endl;
 }
 
 BrainOrchestrator::~BrainOrchestrator() {
@@ -28,16 +32,16 @@ BrainOrchestrator::~BrainOrchestrator() {
 void BrainOrchestrator::initializeModules() {
     std::cout << "📦 Initializing cortical modules..." << std::endl;
     
-    // 1. Sensory Thalamus - The Gatekeeper (reduced for RTX 2050)
+    // 1. Sensory Thalamus - The Gatekeeper (Scaled for stable 4GB GPU usage)
     {
         CorticalModule::Config config;
         config.module_name = "Thalamus";
-        config.num_neurons = 512;  // Reduced
+        config.num_neurons = 20480;  // 5x increase - expanded input pathway
         config.enable_plasticity = true;
         config.learning_rate = 0.01f;
-        config.fanout_per_neuron = 48;
-        config.num_outputs = 256;
-        config.num_inputs = 256;
+        config.fanout_per_neuron = 64;
+        config.num_outputs = 1536;  // Scaled to match embedding_dim
+        config.num_inputs = 1536;
         config.modulation.dopamine_sensitivity = 0.3f;
         config.modulation.serotonin_sensitivity = 0.5f;
         config.modulation.inhibition_level = 0.2f;
@@ -48,16 +52,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Thalamus"] = thalamus_.get();
     }
     
-    // 2. Wernicke's Area - Language Comprehension (reduced for RTX 2050)
+    // 2. Wernicke's Area - Language Comprehension (Scaled - primary semantic processor)
     {
         CorticalModule::Config config;
         config.module_name = "Wernicke";
-        config.num_neurons = 4096;  // Reduced
+        config.num_neurons = 204800;  // 5x increase - strong semantic capacity
         config.enable_plasticity = true;
         config.learning_rate = 0.05f;  // High learning for semantic encoding
-        config.fanout_per_neuron = 64;
-        config.num_outputs = 1024;
-        config.num_inputs = 1024;
+        config.fanout_per_neuron = 80;  // Balanced connectivity
+        config.num_outputs = 8192;  // Scaled output for rich representations
+        config.num_inputs = 8192;
         config.modulation.dopamine_sensitivity = 0.4f;
         config.modulation.serotonin_sensitivity = 0.3f;
         config.modulation.inhibition_level = 0.1f;
@@ -68,16 +72,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Wernicke"] = wernicke_.get();
     }
     
-    // 3. Broca's Area - Language Production (reduced for RTX 2050)
+    // 3. Broca's Area - Language Production (Scaled - output generation)
     {
         CorticalModule::Config config;
         config.module_name = "Broca";
-        config.num_neurons = 4096;  // Reduced
+        config.num_neurons = 204800;  // 5x increase - match Wernicke for balanced processing
         config.enable_plasticity = true;
         config.learning_rate = 0.03f;
-        config.fanout_per_neuron = 64;
-        config.num_outputs = 1024;
-        config.num_inputs = 1024;
+        config.fanout_per_neuron = 80;  // Balanced connectivity
+        config.num_outputs = 12288;  // Reduced to safe decoder input size (~1.5GB decoder matrix)
+        config.num_inputs = 12288;
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.4f;
         config.modulation.inhibition_level = 0.8f;  // High inhibition by default
@@ -88,16 +92,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Broca"] = broca_.get();
     }
     
-    // 4. Hippocampal Formation - Episodic Memory (reduced for RTX 2050)
+    // 4. Hippocampal Formation - Episodic Memory (Scaled - memory capacity)
     {
         CorticalModule::Config config;
         config.module_name = "Hippocampus";
-        config.num_neurons = 2048;  // Reduced
+        config.num_neurons = 102400;  // 5x increase - good context memory
         config.enable_plasticity = true;
         config.learning_rate = 0.15f;  // Very fast learning (3-5x cortical)
-        config.fanout_per_neuron = 64;
-        config.num_outputs = 512;
-        config.num_inputs = 512;
+        config.fanout_per_neuron = 80;  // Balanced connectivity for associations
+        config.num_outputs = 6144;  // Scaled memory representations
+        config.num_inputs = 6144;
         config.modulation.dopamine_sensitivity = 0.6f;
         config.modulation.serotonin_sensitivity = 0.2f;
         config.modulation.inhibition_level = 0.15f;
@@ -108,16 +112,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Hippocampus"] = hippocampus_.get();
     }
     
-    // 5. Prefrontal Cortex - Executive Control (reduced for RTX 2050)
+    // 5. Prefrontal Cortex - Executive Control (Scaled - working memory & integration)
     {
         CorticalModule::Config config;
         config.module_name = "PFC";
-        config.num_neurons = 4096;  // Reduced drastically
+        config.num_neurons = 204800;  // 5x increase - strong reasoning capacity
         config.enable_plasticity = true;
         config.learning_rate = 0.01f;  // Slow learning for stability
-        config.fanout_per_neuron = 96;
-        config.num_outputs = 1024;
-        config.num_inputs = 1024;
+        config.fanout_per_neuron = 96;  // High connectivity for integration
+        config.num_outputs = 8192;  // Scaled for complex representations
+        config.num_inputs = 8192;
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.6f;
         config.modulation.inhibition_level = 0.2f;
@@ -128,16 +132,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["PFC"] = pfc_.get();
     }
     
-    // 6. Basal Ganglia - Action Selection (reduced for RTX 2050)
+    // 6. Basal Ganglia - Action Selection (Scaled - decision making)
     {
         CorticalModule::Config config;
         config.module_name = "BasalGanglia";
-        config.num_neurons = 1024;  // Reduced
+        config.num_neurons = 51200;  // 5x increase - sophisticated action selection
         config.enable_plasticity = true;
         config.learning_rate = 0.08f;  // Moderate learning for RL
-        config.fanout_per_neuron = 64;
-        config.num_outputs = 256;
-        config.num_inputs = 256;
+        config.fanout_per_neuron = 80;  // Balanced connectivity
+        config.num_outputs = 3072;  // Scaled decision space
+        config.num_inputs = 3072;
         config.modulation.dopamine_sensitivity = 1.0f;  // Very sensitive to dopamine!
         config.modulation.serotonin_sensitivity = 0.3f;
         config.modulation.inhibition_level = 0.3f;
@@ -205,6 +209,12 @@ void BrainOrchestrator::createConnectome() {
 }
 
 std::vector<float> BrainOrchestrator::cognitiveStep(const std::vector<float>& input_embedding) {
+    // Route to appropriate processing mode
+    if (processing_mode_ == ProcessingMode::PIPELINED) {
+        return pipelinedCognitiveStep(input_embedding);
+    }
+    
+    // Sequential mode (original implementation)
     pending_input_ = input_embedding;
     std::vector<float> output;
     
@@ -667,6 +677,245 @@ void BrainOrchestrator::modulateGlobalState(float dopamine, float serotonin, flo
             // Norepinephrine affects attention/arousal (adjust top-down bias)
             float attention_boost = norepinephrine * 0.5f;
             module->applyTopDownBias(attention_boost);
+        }
+    }
+}
+
+void BrainOrchestrator::setProcessingMode(ProcessingMode mode) {
+    processing_mode_ = mode;
+    
+    // Reset pipeline state when switching modes
+    if (mode == ProcessingMode::PIPELINED) {
+        pipeline_state_ = PipelineState();
+        std::cout << "✓ Switched to PIPELINED processing mode" << std::endl;
+    } else {
+        std::cout << "✓ Switched to SEQUENTIAL processing mode" << std::endl;
+    }
+}
+
+// ============================================================================
+// PIPELINED PROCESSING IMPLEMENTATION
+// ============================================================================
+
+std::vector<float> BrainOrchestrator::pipelinedCognitiveStep(const std::vector<float>& input_embedding) {
+    std::vector<float> output;
+    
+    // STAGE 1: Fast Input Encoding (50ms equivalent)
+    // Thalamus rapidly encodes new token to working memory
+    fastInputEncoding(input_embedding);
+    
+    // STAGE 2: Parallel Cortical Processing
+    // Modules operate on PREVIOUS working memory while new input is being encoded
+    parallelCorticalProcessing();
+    
+    // STAGE 3: Conditional Output Generation
+    // Broca outputs only when Basal Ganglia signals "ready"
+    output = conditionalOutputGeneration();
+    
+    // STAGE 4: Update Recurrent State
+    // Maintain PFC and Hippocampus hidden states for temporal context
+    updateRecurrentState();
+    
+    // Update timers
+    total_time_ += config_.time_step_ms;
+    time_since_consolidation_ += config_.time_step_ms;
+    pipeline_state_.accumulated_processing_time += config_.time_step_ms;
+    
+    // Periodic memory consolidation
+    if (config_.enable_consolidation && 
+        time_since_consolidation_ >= config_.consolidation_interval_ms) {
+        consolidateMemory();
+        time_since_consolidation_ = 0.0f;
+    }
+    
+    return output;
+}
+
+void BrainOrchestrator::fastInputEncoding(const std::vector<float>& input) {
+    // Thalamus receives and gates input
+    thalamus_->receiveInput(input);
+    
+    // Calculate signal-to-noise ratio for gating
+    float snr = thalamus_->calculateSignalToNoise(input);
+    
+    // Apply gating based on attention threshold
+    auto gated_signal = thalamus_->gateSignal(input, 
+        thalamus_->getConfig().modulation.attention_threshold);
+    
+    // Update thalamus (fast: ~10-20ms biological equivalent)
+    thalamus_->update(config_.time_step_ms, average_reward_);
+    
+    // Shift working memory buffer
+    pipeline_state_.wm_previous = pipeline_state_.wm_current;
+    
+    // Encode to current working memory
+    if (snr > thalamus_->getConfig().modulation.attention_threshold) {
+        pipeline_state_.wm_current = thalamus_->getOutputState();
+    } else {
+        // Low SNR: inject minimal signal
+        pipeline_state_.wm_current = gated_signal;
+    }
+    
+    // Accumulate context (sliding window)
+    if (pipeline_state_.wm_context.empty()) {
+        pipeline_state_.wm_context = pipeline_state_.wm_current;
+    } else {
+        // Exponential moving average of context
+        float decay = 0.9f;
+        for (size_t i = 0; i < std::min(pipeline_state_.wm_context.size(), 
+                                        pipeline_state_.wm_current.size()); ++i) {
+            pipeline_state_.wm_context[i] = 
+                decay * pipeline_state_.wm_context[i] + 
+                (1.0f - decay) * pipeline_state_.wm_current[i];
+        }
+    }
+}
+
+void BrainOrchestrator::parallelCorticalProcessing() {
+    // Process PREVIOUS working memory (t-1) while new input (t) is being encoded
+    // This enables pipeline parallelism
+    
+    if (pipeline_state_.wm_previous.empty()) {
+        // First token: nothing to process yet
+        return;
+    }
+    
+    // === Wernicke's Area: Semantic Processing ===
+    wernicke_->receiveInput(pipeline_state_.wm_previous);
+    wernicke_->update(config_.time_step_ms, average_reward_);
+    auto semantic_output = wernicke_->getOutputState();
+    
+    // === Hippocampus: Memory Retrieval ===
+    // Retrieves relevant memories based on current semantic content
+    hippocampus_->receiveInput(semantic_output);
+    hippocampus_->update(config_.time_step_ms, average_reward_);
+    auto retrieved_memory = hippocampus_->getOutputState();
+    
+    // === PFC: Integration with Recurrent Context ===
+    // Combine current semantic content with:
+    // 1. Retrieved memories from hippocampus
+    // 2. Recurrent hidden state (temporal context)
+    // 3. Accumulated context buffer
+    
+    std::vector<float> pfc_input;
+    pfc_input.reserve(semantic_output.size() + 
+                     retrieved_memory.size() + 
+                     pipeline_state_.pfc_hidden_state.size() +
+                     pipeline_state_.wm_context.size());
+    
+    // Concatenate all context sources
+    pfc_input.insert(pfc_input.end(), semantic_output.begin(), semantic_output.end());
+    pfc_input.insert(pfc_input.end(), retrieved_memory.begin(), retrieved_memory.end());
+    
+    // Add recurrent state if it exists
+    if (!pipeline_state_.pfc_hidden_state.empty()) {
+        pfc_input.insert(pfc_input.end(), 
+                        pipeline_state_.pfc_hidden_state.begin(), 
+                        pipeline_state_.pfc_hidden_state.end());
+    }
+    
+    // Add accumulated context
+    if (!pipeline_state_.wm_context.empty()) {
+        // Sample from context buffer (don't overwhelm PFC)
+        size_t context_samples = std::min(pipeline_state_.wm_context.size(), size_t(256));
+        pfc_input.insert(pfc_input.end(), 
+                        pipeline_state_.wm_context.begin(), 
+                        pipeline_state_.wm_context.begin() + context_samples);
+    }
+    
+    pfc_->receiveInput(pfc_input);
+    pfc_->update(config_.time_step_ms, average_reward_);
+    
+    // Track tokens in pipeline
+    pipeline_state_.tokens_in_pipeline++;
+}
+
+std::vector<float> BrainOrchestrator::conditionalOutputGeneration() {
+    std::vector<float> output;
+    
+    if (pipeline_state_.tokens_in_pipeline == 0) {
+        // No tokens processed yet
+        return output;
+    }
+    
+    // Get integrated state from PFC
+    auto pfc_integrated = pfc_->getOutputState();
+    
+    // === Basal Ganglia: Action Selection (Go/No-Go) ===
+    // Decides whether to output now or accumulate more context
+    basal_ganglia_->receiveInput(pfc_integrated);
+    basal_ganglia_->update(config_.time_step_ms, average_reward_);
+    
+    auto bg_decision = basal_ganglia_->getOutputState();
+    float decision_confidence = std::accumulate(
+        bg_decision.begin(), bg_decision.end(), 0.0f
+    ) / std::max(float(bg_decision.size()), 1.0f);
+    
+    // Output generation is CONDITIONAL based on:
+    // 1. Basal ganglia confidence (learned timing)
+    // 2. Maximum pipeline depth (prevent indefinite accumulation)
+    bool should_output = (decision_confidence > 0.5f) || 
+                        (pipeline_state_.tokens_in_pipeline >= config_.max_pipeline_depth);
+    
+    if (should_output) {
+        // === Broca's Area: Language Production ===
+        // Generate output from accumulated PFC context
+        
+        // Apply top-down bias (disinhibit Broca)
+        broca_->applyTopDownBias(0.8f);
+        
+        broca_->receiveInput(pfc_integrated);
+        broca_->update(config_.time_step_ms, average_reward_);
+        output = broca_->getOutputState();
+        
+        // Reset pipeline counter
+        pipeline_state_.tokens_in_pipeline = 0;
+        tokens_processed_++;
+        
+        // Store working memory for potential retrieval
+        pfc_->setWorkingMemory(pfc_integrated);
+        
+    } else {
+        // Continue accumulating context (No-Go signal)
+        broca_->applyTopDownBias(0.0f);  // Maintain inhibition
+    }
+    
+    return output;
+}
+
+void BrainOrchestrator::updateRecurrentState() {
+    // Update recurrent hidden states for temporal context maintenance
+    
+    // PFC hidden state (working memory maintenance)
+    auto pfc_state = pfc_->getOutputState();
+    if (!pfc_state.empty()) {
+        // Exponential moving average of PFC state
+        if (pipeline_state_.pfc_hidden_state.empty()) {
+            pipeline_state_.pfc_hidden_state = pfc_state;
+        } else {
+            float alpha = 0.7f;  // Recurrent connection strength
+            for (size_t i = 0; i < std::min(pipeline_state_.pfc_hidden_state.size(), 
+                                            pfc_state.size()); ++i) {
+                pipeline_state_.pfc_hidden_state[i] = 
+                    alpha * pipeline_state_.pfc_hidden_state[i] + 
+                    (1.0f - alpha) * pfc_state[i];
+            }
+        }
+    }
+    
+    // Hippocampus hidden state (episodic memory trace)
+    auto hippo_state = hippocampus_->getOutputState();
+    if (!hippo_state.empty()) {
+        if (pipeline_state_.hippocampus_hidden_state.empty()) {
+            pipeline_state_.hippocampus_hidden_state = hippo_state;
+        } else {
+            float alpha = 0.5f;  // Memory decay rate
+            for (size_t i = 0; i < std::min(pipeline_state_.hippocampus_hidden_state.size(), 
+                                            hippo_state.size()); ++i) {
+                pipeline_state_.hippocampus_hidden_state[i] = 
+                    alpha * pipeline_state_.hippocampus_hidden_state[i] + 
+                    (1.0f - alpha) * hippo_state[i];
+            }
         }
     }
 }

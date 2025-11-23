@@ -20,6 +20,8 @@ int main(int argc, char** argv) {
     brain_config.time_step_ms = 1.0f;
     brain_config.enable_parallel_execution = true;
     brain_config.enable_consolidation = false; // Disable complex features for raw speed benchmark
+    brain_config.processing_mode = BrainOrchestrator::ProcessingMode::PIPELINED; // Enable pipelined mode
+    brain_config.max_pipeline_depth = 8; // Allow up to 8 tokens in pipeline before forcing output
 
     auto brain = std::make_unique<BrainOrchestrator>(brain_config);
     

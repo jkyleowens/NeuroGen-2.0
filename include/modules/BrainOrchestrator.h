@@ -25,12 +25,19 @@ public:
         ACTION          // 400ms+: Output generation via Broca's
     };
 
+    enum class ProcessingMode {
+        SEQUENTIAL,     // Traditional: Full 5-phase cycle per token
+        PIPELINED       // Streaming: Token input → working memory → parallel processing
+    };
+
     struct Config {
         int gpu_device_id;
         float time_step_ms;              // Simulation time step (default: 1.0ms)
         bool enable_parallel_execution;  // Use CUDA streams for parallel modules
         bool enable_consolidation;       // Enable hippocampal replay
         float consolidation_interval_ms; // How often to run consolidation
+        ProcessingMode processing_mode;  // Sequential vs Pipelined processing
+        int max_pipeline_depth;          // Max tokens to accumulate before forcing output
     };
 
     BrainOrchestrator(const Config& config);
@@ -148,7 +155,42 @@ public:
      */
     void modulateGlobalState(float dopamine, float serotonin, float norepinephrine);
 
+    /**
+     * @brief Set processing mode
+     * @param mode Sequential or pipelined processing
+     */
+    void setProcessingMode(ProcessingMode mode);
+
+    /**
+     * @brief Get current processing mode
+     */
+    ProcessingMode getProcessingMode() const { return processing_mode_; }
+
 private:
+    /**
+     * @brief Pipeline state for streaming recurrent processing
+     */
+    struct PipelineState {
+        // Working memory buffers (temporal context window)
+        std::vector<float> wm_current;      // t=0 (just encoded)
+        std::vector<float> wm_previous;     // t=-1 (being processed)
+        std::vector<float> wm_context;      // t=-2 to t=-N (accumulated context)
+        
+        // Recurrent hidden states
+        std::vector<float> pfc_hidden_state;
+        std::vector<float> hippocampus_hidden_state;
+        
+        // Pipeline tracking
+        int tokens_in_pipeline;
+        bool output_ready;
+        std::vector<float> pending_output;
+        
+        // Performance metrics
+        float accumulated_processing_time;
+        
+        PipelineState() : tokens_in_pipeline(0), output_ready(false), 
+                         accumulated_processing_time(0.0f) {}
+    };
     Config config_;
     
     // The six core modules
@@ -182,7 +224,11 @@ private:
     // Consolidation state
     float time_since_consolidation_;
     
-    // Helper functions for cognitive phases
+    // Processing mode and pipeline state
+    ProcessingMode processing_mode_;
+    PipelineState pipeline_state_;
+    
+    // Helper functions for cognitive phases (sequential mode)
     void executeSensationPhase(const std::vector<float>& input);
     void executePerceptionPhase();
     void executeIntegrationPhase();
@@ -194,5 +240,12 @@ private:
     
     // Calculate phase duration based on biological timing
     float getPhaseDuration(CognitivePhase phase) const;
+    
+    // Pipelined processing methods
+    std::vector<float> pipelinedCognitiveStep(const std::vector<float>& input_embedding);
+    void fastInputEncoding(const std::vector<float>& input);
+    void parallelCorticalProcessing();
+    std::vector<float> conditionalOutputGeneration();
+    void updateRecurrentState();
 };
 
