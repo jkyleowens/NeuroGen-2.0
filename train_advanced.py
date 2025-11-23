@@ -62,7 +62,7 @@ class TrainingMetrics:
 class TrainingConfig:
     """Training configuration"""
     vocab_size: int = 32000  # SentencePiece vocab size
-    embedding_dim: int = 1536  # Scaled to 60% of max for stable 4GB GPU usage
+    embedding_dim: int = 2048  # Quadrupled from 512 for maximum capacity
     gpu_device: int = 0
     
     # Dataset

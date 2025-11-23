@@ -32,16 +32,16 @@ BrainOrchestrator::~BrainOrchestrator() {
 void BrainOrchestrator::initializeModules() {
     std::cout << "📦 Initializing cortical modules..." << std::endl;
     
-    // 1. Sensory Thalamus - The Gatekeeper (Scaled for stable 4GB GPU usage)
+    // 1. Sensory Thalamus - The Gatekeeper (MAXIMALLY SCALED for 4GB GPU)
     {
         CorticalModule::Config config;
         config.module_name = "Thalamus";
-        config.num_neurons = 20480;  // 5x increase - expanded input pathway
+        config.num_neurons = 30720;  // 7.5x increase - expanded input pathway
         config.enable_plasticity = true;
         config.learning_rate = 0.01f;
         config.fanout_per_neuron = 64;
-        config.num_outputs = 1536;  // Scaled to match embedding_dim
-        config.num_inputs = 1536;
+        config.num_outputs = 2048;  // 2x increase for richer representations (matches embedding_dim)
+        config.num_inputs = 2048;
         config.modulation.dopamine_sensitivity = 0.3f;
         config.modulation.serotonin_sensitivity = 0.5f;
         config.modulation.inhibition_level = 0.2f;
@@ -52,16 +52,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Thalamus"] = thalamus_.get();
     }
     
-    // 2. Wernicke's Area - Language Comprehension (Scaled - primary semantic processor)
+    // 2. Wernicke's Area - Language Comprehension (MAXIMALLY SCALED - primary semantic processor)
     {
         CorticalModule::Config config;
         config.module_name = "Wernicke";
-        config.num_neurons = 204800;  // 5x increase - strong semantic capacity
+        config.num_neurons = 307200;  // 7.5x increase - massive semantic capacity
         config.enable_plasticity = true;
         config.learning_rate = 0.05f;  // High learning for semantic encoding
-        config.fanout_per_neuron = 80;  // Balanced connectivity
-        config.num_outputs = 8192;  // Scaled output for rich representations
-        config.num_inputs = 8192;
+        config.fanout_per_neuron = 96;  // Increased connectivity
+        config.num_outputs = 10240;  // Scaled output for richer representations
+        config.num_inputs = 10240;
         config.modulation.dopamine_sensitivity = 0.4f;
         config.modulation.serotonin_sensitivity = 0.3f;
         config.modulation.inhibition_level = 0.1f;
@@ -72,16 +72,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Wernicke"] = wernicke_.get();
     }
     
-    // 3. Broca's Area - Language Production (Scaled - output generation)
+    // 3. Broca's Area - Language Production (MAXIMALLY SCALED - output generation)
     {
         CorticalModule::Config config;
         config.module_name = "Broca";
-        config.num_neurons = 204800;  // 5x increase - match Wernicke for balanced processing
+        config.num_neurons = 307200;  // 7.5x increase - match Wernicke for balanced processing
         config.enable_plasticity = true;
         config.learning_rate = 0.03f;
-        config.fanout_per_neuron = 80;  // Balanced connectivity
-        config.num_outputs = 12288;  // Reduced to safe decoder input size (~1.5GB decoder matrix)
-        config.num_inputs = 12288;
+        config.fanout_per_neuron = 96;  // Increased connectivity
+        config.num_outputs = 32768;  // Scaled to match decoder input dimensions
+        config.num_inputs = 32768;
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.4f;
         config.modulation.inhibition_level = 0.8f;  // High inhibition by default
@@ -92,16 +92,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Broca"] = broca_.get();
     }
     
-    // 4. Hippocampal Formation - Episodic Memory (Scaled - memory capacity)
+    // 4. Hippocampal Formation - Episodic Memory (MAXIMALLY SCALED - memory capacity)
     {
         CorticalModule::Config config;
         config.module_name = "Hippocampus";
-        config.num_neurons = 102400;  // 5x increase - good context memory
+        config.num_neurons = 153600;  // 7.5x increase - much longer context memory
         config.enable_plasticity = true;
         config.learning_rate = 0.15f;  // Very fast learning (3-5x cortical)
-        config.fanout_per_neuron = 80;  // Balanced connectivity for associations
-        config.num_outputs = 6144;  // Scaled memory representations
-        config.num_inputs = 6144;
+        config.fanout_per_neuron = 96;  // Increased connectivity for associations
+        config.num_outputs = 8192;  // Scaled memory representations
+        config.num_inputs = 8192;
         config.modulation.dopamine_sensitivity = 0.6f;
         config.modulation.serotonin_sensitivity = 0.2f;
         config.modulation.inhibition_level = 0.15f;
@@ -112,16 +112,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["Hippocampus"] = hippocampus_.get();
     }
     
-    // 5. Prefrontal Cortex - Executive Control (Scaled - working memory & integration)
+    // 5. Prefrontal Cortex - Executive Control (MAXIMALLY SCALED - working memory & integration)
     {
         CorticalModule::Config config;
         config.module_name = "PFC";
-        config.num_neurons = 204800;  // 5x increase - strong reasoning capacity
+        config.num_neurons = 307200;  // 7.5x increase - massive reasoning capacity
         config.enable_plasticity = true;
         config.learning_rate = 0.01f;  // Slow learning for stability
-        config.fanout_per_neuron = 96;  // High connectivity for integration
-        config.num_outputs = 8192;  // Scaled for complex representations
-        config.num_inputs = 8192;
+        config.fanout_per_neuron = 128;  // Very high connectivity for integration
+        config.num_outputs = 10240;  // Scaled for complex representations
+        config.num_inputs = 10240;
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.6f;
         config.modulation.inhibition_level = 0.2f;
@@ -132,16 +132,16 @@ void BrainOrchestrator::initializeModules() {
         module_map_["PFC"] = pfc_.get();
     }
     
-    // 6. Basal Ganglia - Action Selection (Scaled - decision making)
+    // 6. Basal Ganglia - Action Selection (MAXIMALLY SCALED - decision making)
     {
         CorticalModule::Config config;
         config.module_name = "BasalGanglia";
-        config.num_neurons = 51200;  // 5x increase - sophisticated action selection
+        config.num_neurons = 76800;  // 7.5x increase - sophisticated action selection
         config.enable_plasticity = true;
         config.learning_rate = 0.08f;  // Moderate learning for RL
-        config.fanout_per_neuron = 80;  // Balanced connectivity
-        config.num_outputs = 3072;  // Scaled decision space
-        config.num_inputs = 3072;
+        config.fanout_per_neuron = 96;  // Increased connectivity
+        config.num_outputs = 4096;  // Scaled decision space
+        config.num_inputs = 4096;
         config.modulation.dopamine_sensitivity = 1.0f;  // Very sensitive to dopamine!
         config.modulation.serotonin_sensitivity = 0.3f;
         config.modulation.inhibition_level = 0.3f;

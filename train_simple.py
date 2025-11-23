@@ -71,7 +71,7 @@ def train_simple():
     
     model = libneurogen.NeuroGenModel(
         vocab_size=vocab_size,
-        embedding_dim=1536,  # Scaled to 60% of max for stable 4GB GPU usage
+        embedding_dim=2048,  # Quadrupled from 512 for maximum capacity
         gpu_device=0
     )
     print("✅ Model initialized\n")

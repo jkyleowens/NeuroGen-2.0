@@ -64,7 +64,7 @@ class NeuroGenChat:
         print("🚀 Initializing NeuroGen model...")
         self.model = libneurogen.NeuroGenModel(
             vocab_size=self.vocab_size,
-            embedding_dim=1536,  # Scaled to 60% of max for stable 4GB GPU usage
+            embedding_dim=2048,  # Quadrupled from 512 for maximum capacity
             gpu_device=0
         )
         print("✅ Model initialized\n")

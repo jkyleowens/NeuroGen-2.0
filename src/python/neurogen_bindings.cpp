@@ -77,7 +77,7 @@ public:
         // Use GPU-accelerated decoder for 50-100x speedup!
         GPUDecoder::Config gpu_decoder_config;
         gpu_decoder_config.vocab_size = vocab_size_;
-        gpu_decoder_config.output_dim = 12288; // Broca output size (Scaled to 60% of max for stable 4GB GPU usage)
+        gpu_decoder_config.output_dim = 32768; // Broca output size (MAXIMALLY SCALED for 4GB GPU - quadrupled)
         gpu_decoder_config.temperature = 1.0f;
         gpu_decoder_config.top_k = 50;
         gpu_decoder_config.top_p = 0.9f;
@@ -86,16 +86,10 @@ public:
         
         gpu_decoder_ = std::make_shared<GPUDecoder>(gpu_decoder_config, embedding_);
         
-        // 🚀 Pre-allocate buffers to eliminate per-token memory allocation
-        // Broca output size is 12288 (from gpu_decoder_config.output_dim)
-        embedding_buffer_.resize(embedding_dim_);
-        brain_output_buffer_.resize(12288); // Broca output dimension
-        
         std::cout << "✅ NeuroGen model initialized with:" << std::endl;
         std::cout << "   Vocab Size: " << vocab_size_ << std::endl;
         std::cout << "   Embedding Dim: " << embedding_dim_ << std::endl;
         std::cout << "   GPU Device: " << gpu_device_ << std::endl;
-        std::cout << "   🚀 Memory optimization: Pre-allocated buffers enabled" << std::endl;
     }
     
     /**
@@ -116,25 +110,19 @@ public:
         int correct_predictions = 0;
         int total_tokens = 0;
         
-        // 🚀 OPTIMIZATION: Reuse buffers instead of allocating on every token
-        // This eliminates 1000-6000 allocations per training step!
-        // Memory saved: 12 KB × num_tokens (e.g., 6 MB for 500 tokens)
-        
         // Process each token in sequence
         for (size_t i = 0; i < input_ids.size(); ++i) {
-            // 1. Embed input token (reuse embedding_buffer_ to minimize copies)
-            embedding_buffer_ = embedding_->encodeById(input_ids[i]);
+            // 1. Embed input token
+            std::vector<float> embedded = embedding_->encodeById(input_ids[i]);
             
-            // 2. Process through brain (pass by const reference to avoid copy)
-            brain_->cognitiveStep(embedding_buffer_);
+            // 2. Process through brain
+            brain_->cognitiveStep(embedded);
             
-            // 3. Get output from Broca (reuse brain_output_buffer_)
-            brain_output_buffer_ = brain_->getBrocaOutput();
+            // 3. Get output from Broca (language production area)
+            std::vector<float> brain_output = brain_->getBrocaOutput();
             
-            // 4. Decode to vocabulary distribution using GPU decoder
-            // Note: This still has GPU→CPU sync overhead per token
-            // For full optimization, implement batch processing (see CPU_BOTTLENECK_FIX.h)
-            int predicted_token = gpu_decoder_->decodeAndSample(brain_output_buffer_);
+            // 4. Decode to vocabulary distribution using GPU decoder (50-100x faster!)
+            int predicted_token = gpu_decoder_->decodeAndSample(brain_output);
             
             // 5. Compute loss (cross-entropy approximation via negative log likelihood)
             // For simplicity, using 0/1 loss for now
@@ -250,11 +238,6 @@ private:
     std::unique_ptr<BrainOrchestrator> brain_;
     std::shared_ptr<TokenEmbedding> embedding_;
     std::shared_ptr<GPUDecoder> gpu_decoder_;
-    
-    // 🚀 Pre-allocated buffers to eliminate per-token memory allocation
-    // These buffers are reused across all tokens in train_step()
-    std::vector<float> embedding_buffer_;
-    std::vector<float> brain_output_buffer_;
 };
 
 // Python module definition
