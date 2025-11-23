@@ -80,8 +80,8 @@ void BrainOrchestrator::initializeModules() {
         config.enable_plasticity = true;
         config.learning_rate = 0.03f;
         config.fanout_per_neuron = 96;  // Increased connectivity
-        config.num_outputs = 32768;  // Scaled to match decoder input dimensions
-        config.num_inputs = 32768;
+        config.num_outputs = 8192;  // Optimized for GTX 1650 (4GB VRAM)
+        config.num_inputs = 8192;   // Optimized for GTX 1650 (4GB VRAM)
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.4f;
         config.modulation.inhibition_level = 0.8f;  // High inhibition by default

@@ -77,7 +77,7 @@ public:
         // Use GPU-accelerated decoder for 50-100x speedup!
         GPUDecoder::Config gpu_decoder_config;
         gpu_decoder_config.vocab_size = vocab_size_;
-        gpu_decoder_config.output_dim = 32768; // Broca output size (MAXIMALLY SCALED for 4GB GPU - quadrupled)
+        gpu_decoder_config.output_dim = 8192; // Broca output size (Optimized for GTX 1650 4GB VRAM)
         gpu_decoder_config.temperature = 1.0f;
         gpu_decoder_config.top_k = 50;
         gpu_decoder_config.top_p = 0.9f;
@@ -90,6 +90,7 @@ public:
         std::cout << "   Vocab Size: " << vocab_size_ << std::endl;
         std::cout << "   Embedding Dim: " << embedding_dim_ << std::endl;
         std::cout << "   GPU Device: " << gpu_device_ << std::endl;
+        std::cout << "   🎯 Memory Optimized: GTX 1650 (4GB) configuration" << std::endl;
     }
     
     /**

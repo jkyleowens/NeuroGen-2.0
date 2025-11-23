@@ -29,9 +29,13 @@ try:
     from datasets import load_dataset
     import sentencepiece as spm
     from tqdm import tqdm
+    import matplotlib
+    matplotlib.use('Agg')  # Non-interactive backend
+    import matplotlib.pyplot as plt
+    from matplotlib.gridspec import GridSpec
 except ImportError as e:
     print(f"Error: Missing required package - {e}")
-    print("Install with: pip install datasets sentencepiece torch numpy tqdm zstandard")
+    print("Install with: pip install datasets sentencepiece torch numpy tqdm zstandard matplotlib")
     sys.exit(1)
 
 try:
@@ -59,11 +63,22 @@ except ImportError:
 # once they are built.
 
 @dataclass
+class TrainingMetrics:
+    """Real-time training metrics"""
+    step: int
+    loss: float
+    accuracy: float
+    tokens_per_sec: float
+    gpu_memory_mb: float
+    learning_rate: float
+    timestamp: float
+
+@dataclass
 class TrainingConfig:
     """Training configuration"""
     # Model parameters
     vocab_size: int = 32000  # SentencePiece vocab size
-    embedding_dim: int = 2048  # Quadrupled from 512 for maximum capacity
+    embedding_dim: int = 768  # Optimized for GTX 1650 (4GB VRAM)
     gpu_device: int = 0
     temperature: float = 1.0  # Sampling temperature
     
@@ -71,7 +86,7 @@ class TrainingConfig:
     dataset_name: str = "cerebras/SlimPajama-627B"
     dataset_split: str = "train"
     streaming: bool = True  # Stream for large datasets
-    max_seq_length: int = 512
+    max_seq_length: int = 256  # Reduced for GTX 1650 memory efficiency
     
     # Training parameters
     batch_size: int = 1
@@ -91,6 +106,11 @@ class TrainingConfig:
     eval_interval: int = 500 # Run periodic evaluation every N steps
     verbose_logging: bool = True
     chunk_debug_interval: int = 1  # Log every sample to ensure visibility
+    
+    # Visualization
+    viz_dir: str = "training_viz"
+    viz_interval: int = 5  # Generate charts every 5 steps
+    save_samples_every: int = 1  # Save text samples every step
     
     # Tokenizer
     tokenizer_dir: str = "tokenizer"

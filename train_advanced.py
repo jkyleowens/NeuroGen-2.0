@@ -62,14 +62,14 @@ class TrainingMetrics:
 class TrainingConfig:
     """Training configuration"""
     vocab_size: int = 32000  # SentencePiece vocab size
-    embedding_dim: int = 2048  # Quadrupled from 512 for maximum capacity
+    embedding_dim: int = 768  # Optimized for GTX 1650 (4GB VRAM)
     gpu_device: int = 0
     
     # Dataset
     dataset_name: str = "cerebras/SlimPajama-627B"
     dataset_split: str = "train"
     streaming: bool = True
-    max_seq_length: int = 256
+    max_seq_length: int = 256  # Optimized for GTX 1650
     
     # Training
     batch_size: int = 1
