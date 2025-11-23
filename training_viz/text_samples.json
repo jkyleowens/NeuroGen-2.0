@@ -3,50 +3,900 @@
     "chunk": 1,
     "step": 1,
     "input": "J.J. Abrams Returns To Write And Direct 'Star Wars: Episode IX' 09/12/2017 11:11 am ET Up",
-    "output": "Pleas",
+    "output": "Jir\u014d",
     "expected_next": "d",
-    "predicted_next": "Pleas",
-    "accuracy": 0.0,
-    "sample_index": 0
+    "predicted_next": "Jir\u014d",
+    "accuracy": 0.0
   },
   {
     "chunk": 2,
     "step": 9,
     "input": "The new U.S. National Defense Strategy: A \"good deal\" for the Military-Industrial Complex Feb 9th, 2018 + In this",
-    "output": "Irish",
+    "output": "thinks",
     "expected_next": "article",
-    "predicted_next": "Irish",
-    "accuracy": 0.0,
-    "sample_index": 0
+    "predicted_next": "thinks",
+    "accuracy": 0.0
   },
   {
     "chunk": 3,
     "step": 14,
     "input": "When you have an event, and you are expecting a lot of people example for a wedding then you will need a corporate catering company that will",
-    "output": "political",
+    "output": "Footnotes",
     "expected_next": "help",
-    "predicted_next": "political",
-    "accuracy": 0.0,
-    "sample_index": 0
+    "predicted_next": "Footnotes",
+    "accuracy": 0.0
   },
   {
     "chunk": 4,
     "step": 20,
     "input": "Inquest into Albanian seaman's death postponed as official investigation continues Bethany Whymark Published: 4:37 PM February 8, 2019",
-    "output": "Reno",
+    "output": "2:54",
     "expected_next": "Alfred",
-    "predicted_next": "Reno",
-    "accuracy": 0.0,
-    "sample_index": 0
+    "predicted_next": "2:54",
+    "accuracy": 0.0
   },
   {
     "chunk": 5,
     "step": 27,
     "input": "This week's portion, Shimini, carries us deeper into the book of Leviticus. The first half of the portion is the initiation of the",
-    "output": "Pyr",
+    "output": "Kel",
     "expected_next": "sac",
-    "predicted_next": "Pyr",
-    "accuracy": 0.0,
-    "sample_index": 0
+    "predicted_next": "Kel",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 6,
+    "step": 33,
+    "input": "rude, carnal, barbarous, ferocious, coarse, brutish, ruthless, brutal, savage, g",
+    "output": "chet",
+    "expected_next": "ross",
+    "predicted_next": "chet",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 7,
+    "step": 43,
+    "input": "Would the BBC work better as a company, charity, instead of a new Royal charter? The BBC exists because, every ten years, the monarch has granted",
+    "output": "On",
+    "expected_next": "another",
+    "predicted_next": "On",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 8,
+    "step": 44,
+    "input": "The Riley Theatre at Northern School of Contemporary Dance. Unfortunately comprehensive archives prior to 2001 may have been lost to fire. We are looking to make",
+    "output": "most",
+    "expected_next": "these",
+    "predicted_next": "most",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 9,
+    "step": 52,
+    "input": "Q: Execute shell script on cygwin from Python I want to execute a shell script, on cygwin from Python.",
+    "output": "Wa",
+    "expected_next": "The",
+    "predicted_next": "Wa",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 10,
+    "step": 56,
+    "input": "Lenin was sent into Russia by the Germans in the same way that you might send a phial containing a culture of typhoid or cholera to",
+    "output": "mathem",
+    "expected_next": "be",
+    "predicted_next": "mathem",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 11,
+    "step": 66,
+    "input": "Subject matter eligibility jurisprudence under 35 U.S.C.  \u2047  101 has been in flux in recent years, following the Supreme",
+    "output": "phia",
+    "expected_next": "Court",
+    "predicted_next": "phia",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 12,
+    "step": 73,
+    "input": "Gucci, Cartier, Prada, Chanel and Louis Vuitton may still dominate fashion in China \u2013 but the new 'Made",
+    "output": "McTe",
+    "expected_next": "in",
+    "predicted_next": "McTe",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 13,
+    "step": 76,
+    "input": "Connection Issuse after finished print & PC wake-up from sleep. As I am getting into bigger & longer prints I am starting to now notice a",
+    "output": "als",
+    "expected_next": "issue",
+    "predicted_next": "als",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 14,
+    "step": 83,
+    "input": "Caro Ryan is 'the unexpected outdoors chick' \u2013 from a non-outdoorsy family, it took her until she was 21 to",
+    "output": "less",
+    "expected_next": "discover",
+    "predicted_next": "less",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 15,
+    "step": 89,
+    "input": "Stardrifter is a novel by Dale Aycock published in 1981. Plot summary Stardrifter is a novel in which the owner of an interst",
+    "output": "products",
+    "expected_next": "ellar",
+    "predicted_next": "products",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 16,
+    "step": 99,
+    "input": "Opinion and Awards to be E-mailed \u2013 The Industrial Commission announced that beginning on January 2, 2018 workers' compensation Opinions and Awards will be served",
+    "output": "Zhuw",
+    "expected_next": "via",
+    "predicted_next": "Zhuw",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 17,
+    "step": 109,
+    "input": "Maybe you have a migration that sets it to true again? Or you only read in configuration? [SOLVED] How do I recreate",
+    "output": "Campisi",
+    "expected_next": "the",
+    "predicted_next": "Campisi",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 18,
+    "step": 119,
+    "input": "Premier League: Leicester crushes West Brom Published: Sep 14,202001:11 AM Leicester City made a winning start to the",
+    "output": "impoverished",
+    "expected_next": "2020",
+    "predicted_next": "impoverished",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 19,
+    "step": 129,
+    "input": "We are required under certain State Laws to notify consumers of those States of the following rights. This list does not contain a complete list of the rights consumers have under",
+    "output": "nonprofit",
+    "expected_next": "Federal",
+    "predicted_next": "nonprofit",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 20,
+    "step": 138,
+    "input": "Webster's Knucklehead keeps it all in the family Will Cleveland  \u2047 WillCleveland13 On Saturday afternoon, the entire",
+    "output": "Peloponn",
+    "expected_next": "staff",
+    "predicted_next": "Peloponn",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 21,
+    "step": 140,
+    "input": "Johnson Controls, Inc. (JCI) Is Going Nowhere. Here's Why. Sales at America's automakers have been going",
+    "output": "Diana",
+    "expected_next": "great",
+    "predicted_next": "Diana",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 22,
+    "step": 147,
+    "input": "MOON VS SUN \u2013 the collaboration between two of Canada's most prolific artists, Chantal Kreviazuk and Our Lady Peace front",
+    "output": "someone",
+    "expected_next": "man",
+    "predicted_next": "someone",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 23,
+    "step": 153,
+    "input": "Q: How to git clone with username and password in gitlab? I am using gitlab . I want to",
+    "output": "Caribbean",
+    "expected_next": "write",
+    "predicted_next": "Caribbean",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 24,
+    "step": 158,
+    "input": "Find conveyor belt in Gauteng Business-to-Business | Search Gumtree Free Online Classified Ads for conveyor belt in Gauteng",
+    "output": "uk",
+    "expected_next": "Business",
+    "predicted_next": "uk",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 25,
+    "step": 169,
+    "input": "Misappropriation of Trade Secrets RPNA attorneys keep business objectives on track when advising clients on the preservation and protection of trade secrets.",
+    "output": "ies",
+    "expected_next": "Information",
+    "predicted_next": "ies",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 26,
+    "step": 172,
+    "input": "Baltimore news outlets have published body cam video from a supposed drug bust back in January. The video appears to show a cop planting drugs in a trash p",
+    "output": "actors",
+    "expected_next": "ile",
+    "predicted_next": "actors",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 27,
+    "step": 182,
+    "input": "On Saturday, Brynn Paulin, Jennifer Armintrout, Cheryl Sterling and I gave a presentation at our local library as part of their",
+    "output": "checking",
+    "expected_next": "C",
+    "predicted_next": "checking",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 28,
+    "step": 186,
+    "input": "Prostate cancer is an important public health problem. It is an excellent candidate disease for chemo-prevention because prostate cancer is typically slow growing and is",
+    "output": "earning",
+    "expected_next": "usually",
+    "predicted_next": "earning",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 29,
+    "step": 191,
+    "input": "Product prices and availability are accurate as of 2019-04-25 05:33:01 UTC and are subject to change. Any price and avail",
+    "output": "siege",
+    "expected_next": "ability",
+    "predicted_next": "siege",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 30,
+    "step": 197,
+    "input": "Mystery Of The 80 Million-Year-Old Sharks' Teeth In The City Of David MessageToEagle | July 5, 2021",
+    "output": "degrees",
+    "expected_next": "|",
+    "predicted_next": "degrees",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 31,
+    "step": 205,
+    "input": "Dubai mall operator Majid Al Futtaim secures first $1.5bln sustainability-linked loan August 27, 2021 172 Loan agreement includes gender diversity target for",
+    "output": "Sud",
+    "expected_next": "women",
+    "predicted_next": "Sud",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 32,
+    "step": 212,
+    "input": "The Portofino 53 is a luxurious sports cruiser that combines wide cruising potential with impressive top speeds. She is exceptionally manoe",
+    "output": "chart",
+    "expected_next": "u",
+    "predicted_next": "chart",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 33,
+    "step": 220,
+    "input": "Q: Cannot read property 'map' of undefined on useState value I'm new to react, I'm getting this error",
+    "output": "subspecies",
+    "expected_next": "const",
+    "predicted_next": "subspecies",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 34,
+    "step": 229,
+    "input": "\"You got some time off from flying then?\" Gibson cocked his head with a knowing grin, probably having seen the direction of Maxwell's eyes",
+    "output": "ke",
+    "expected_next": ".",
+    "predicted_next": "ke",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 35,
+    "step": 234,
+    "input": "Judoka Dex Elmont is European Champion 2014 U73kg and won three World Championships medals, but the gold is missing. He participated at three Olympic",
+    "output": "fill",
+    "expected_next": "Games",
+    "predicted_next": "fill",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 36,
+    "step": 236,
+    "input": "Q: How to reset all components in Vue.js I'm trying to restart my component when the route changes: beforeRouteUp",
+    "output": "studies",
+    "expected_next": "d",
+    "predicted_next": "studies",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 37,
+    "step": 241,
+    "input": "She can now flaunt her #wrist aid the crowd and everyone would admire the nice girl. A girl who loves art can explore this amazing me",
+    "output": "Antirr",
+    "expected_next": "hend",
+    "predicted_next": "Antirr",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 38,
+    "step": 250,
+    "input": "Back in March we had the incredible opportunity to tour Japan for 6 days and the country made a lasting impression on all of us. Never have we been",
+    "output": "Free",
+    "expected_next": "so",
+    "predicted_next": "Free",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 39,
+    "step": 256,
+    "input": "Working with older people including those living with dementia, we have seen first hand how our original poems trigger reminiscence and encourage conversation. Our nost",
+    "output": "aughan",
+    "expected_next": "alg",
+    "predicted_next": "aughan",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 40,
+    "step": 260,
+    "input": "namespace SSS_Windows_Forms.Forms.Tutor { partial class TutorDashboardModal",
+    "output": "zz",
+    "expected_next": "{",
+    "predicted_next": "zz",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 41,
+    "step": 266,
+    "input": "Gingy's Corner Wander No More/Written in the Sky By Gingy Gibson  \u2047  January 31st, 2020 This week",
+    "output": "Tulsk",
+    "expected_next": ",",
+    "predicted_next": "Tulsk",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 42,
+    "step": 268,
+    "input": "Home \u00bb Forums \u00bb Public Access \u00bb Promotions Board \u00bb Is That You John Wayne? Please give a warm welcome to our",
+    "output": "1988,",
+    "expected_next": "new",
+    "predicted_next": "1988,",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 43,
+    "step": 276,
+    "input": "My name is Andra \u2047  and I \u0301m 21 years old. I \u0301ve just seen one of your presentations on youtube about",
+    "output": "rod",
+    "expected_next": "gl",
+    "predicted_next": "rod",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 44,
+    "step": 282,
+    "input": "Overcome your fear of starting with an empty Excel spreadsheet and become proficient to create your own Profit and Loss statement for your business. This works",
+    "output": "consistency",
+    "expected_next": "hop",
+    "predicted_next": "consistency",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 45,
+    "step": 293,
+    "input": "British based charity Team Kenya have named Lucy Bronze as their first ambassador. The 26-year-old is an English footballer plays for French club Olympique Ly",
+    "output": "urally",
+    "expected_next": "onn",
+    "predicted_next": "urally",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 46,
+    "step": 301,
+    "input": "Qualification & Experience: Master degree or equivalent in Business Administration, Public Administration (Specialization HR) or Social Sciences from an HEC",
+    "output": "Ramen",
+    "expected_next": "recognized",
+    "predicted_next": "Ramen",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 47,
+    "step": 309,
+    "input": "This is a software issue that has been bugging me these past few weeks. I put my computer to sleep, I wake it up, and everything boots",
+    "output": "Grammar",
+    "expected_next": "up",
+    "predicted_next": "Grammar",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 48,
+    "step": 314,
+    "input": "Bundle of holding have a couple of offers up just now for Ars Magica, the magical fantasy RPG from Atlas Games. It was",
+    "output": "Gilwattle",
+    "expected_next": "originally",
+    "predicted_next": "Gilwattle",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 49,
+    "step": 322,
+    "input": "The Power of Dowsing The power of dowsing mystifies, attracts or goes unnoticed. Which describes you? Those who are interested in",
+    "output": "amsad",
+    "expected_next": "psych",
+    "predicted_next": "amsad",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 50,
+    "step": 328,
+    "input": " \u2047 class UIImage;  \u2047 interface CHChatMessageLocationVM : CHChatMessageFileV",
+    "output": "Baroness",
+    "expected_next": "M",
+    "predicted_next": "Baroness",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 51,
+    "step": 337,
+    "input": "Urs of Khwaja Moinuddin Chisti at Ajmer Part 2 Fairs Recommended Temples Uncategorized A symbol of",
+    "output": "ks",
+    "expected_next": "divine",
+    "predicted_next": "ks",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 52,
+    "step": 345,
+    "input": "Drill \u2013 styl muzyki rap, kt\u00f3ry narodzi \u2047  si \u2047  w South Side w Chicago na pocz",
+    "output": "Ger",
+    "expected_next": "\u0105",
+    "predicted_next": "Ger",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 53,
+    "step": 346,
+    "input": "package ch.bastiangardel.easypay.exception; public class CheckOutNotFoundException extends RuntimeException",
+    "output": "Mile",
+    "expected_next": "{",
+    "predicted_next": "Mile",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 54,
+    "step": 353,
+    "input": "John Kelly of the Irish Chamber Orchestra at the 2011 Irish America Wall Street 50 John Kelly of the Irish Chamber Orchestra plays a riveting rendition of \"O'",
+    "output": "ling",
+    "expected_next": "Car",
+    "predicted_next": "ling",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 55,
+    "step": 358,
+    "input": "to be mandatory at the beginning of 2020. during the lifetime of the plan. Fair Share Mitigation Impact Fees. Next message: domainremoved:",
+    "output": "Cadillac",
+    "expected_next": "\"",
+    "predicted_next": "Cadillac",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 56,
+    "step": 363,
+    "input": "Clay City, Illinois is the 10,693rd largest city in the United States as of 2017. Clay City, Illinois is a village. Clay City, Illinois is",
+    "output": "umbrella",
+    "expected_next": "currently",
+    "predicted_next": "umbrella",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 57,
+    "step": 370,
+    "input": "Put your beer-drinking skills to good use on a self-guided beer tour and mystery investigation through Carrboro. Solve a mysterious",
+    "output": "agerung",
+    "expected_next": "disapp",
+    "predicted_next": "agerung",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 58,
+    "step": 374,
+    "input": "Superlight SL4267 is a commercial grade LED downlight suitable for large scale projects requiring a robust and powerful downlight solution. The fitting",
+    "output": "ampl",
+    "expected_next": "features",
+    "predicted_next": "ampl",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 59,
+    "step": 381,
+    "input": "A scarce view of Genoa naming some 56 important locations. A scarce c. 1725-1750 panoramic view of Genoa",
+    "output": "hate",
+    "expected_next": ",",
+    "predicted_next": "hate",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 60,
+    "step": 389,
+    "input": "\\subsection{Deligne's category $\\mathop{\\underline{\\smash{\\mathrm{Rep}}}}(G",
+    "output": "ative",
+    "expected_next": "L",
+    "predicted_next": "ative",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 61,
+    "step": 390,
+    "input": "Product Description Piccolo C tone,ABS body, silver plated key ,copper mouthpiece .. Attention: The wood frame here is",
+    "output": "hnaill",
+    "expected_next": "to",
+    "predicted_next": "hnaill",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 62,
+    "step": 394,
+    "input": "Photo voltaic solar energy is a clean source of energy with much lower carbon footprint than other sources. However, the vast land requirements",
+    "output": "att",
+    "expected_next": "of",
+    "predicted_next": "att",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 63,
+    "step": 403,
+    "input": "White Bears bounced back from their disappointment at IMKA to record a solid four set win against Onyx that leaves all four teams",
+    "output": "denda",
+    "expected_next": "that",
+    "predicted_next": "denda",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 64,
+    "step": 409,
+    "input": "Figure-lyricism\u2013dream COSTAS Joachim has an exhibition at the Alpha Gallery, Nicosia. Joachim was born in",
+    "output": "ecutor",
+    "expected_next": "1936",
+    "predicted_next": "ecutor",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 65,
+    "step": 416,
+    "input": "Our Toronto-based client is one of Canada's leading infrastructure suppliers. In business for over 50 years, the firm provides services to the oil, gas and",
+    "output": "2.4",
+    "expected_next": "municipal",
+    "predicted_next": "2.4",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 66,
+    "step": 419,
+    "input": "We provide a 24x7 airport transfer service covering all major London airports and seaports including Heathrow, Gatwick, Stansted, City and L",
+    "output": "F\u00e9licie",
+    "expected_next": "uton",
+    "predicted_next": "F\u00e9licie",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 67,
+    "step": 426,
+    "input": "The real key to creating a superb article might be to help it to become interesting, along with the secret to that is actually to come up with something you",
+    "output": "descendants",
+    "expected_next": "'",
+    "predicted_next": "descendants",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 68,
+    "step": 431,
+    "input": "Pack Up + Go revolutionizes travel by incorporating the element of surprise to encourage the pursuit of wonder, spontaneity, and exploration in each of our",
+    "output": "Sak",
+    "expected_next": "travel",
+    "predicted_next": "Sak",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 69,
+    "step": 439,
+    "input": "Department of Defense Education Activity LHS School Homepage Mid-Atlantic District Camp Lejeune Community Schools Athletics, Clubs, & Activities Curricular",
+    "output": "Zhu",
+    "expected_next": "Programs",
+    "predicted_next": "Zhu",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 70,
+    "step": 445,
+    "input": "Home \u2047 W.P.B.C. Online Privacy Statement W.P.B.C. Online Privacy Statement Newsletters &",
+    "output": "Xtreme",
+    "expected_next": "Em",
+    "predicted_next": "Xtreme",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 71,
+    "step": 453,
+    "input": "Q: How do I add an XML attribute using DataContract I have a simple class I'm serializing. [DataC",
+    "output": "eenth",
+    "expected_next": "ont",
+    "predicted_next": "eenth",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 72,
+    "step": 462,
+    "input": "Jan 23, 1985 - Precision Surgical Instruments, Inc. A hand held surgical instrument for use in removing body tissue from a human",
+    "output": "qi",
+    "expected_next": "body",
+    "predicted_next": "qi",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 73,
+    "step": 464,
+    "input": "Home \u00bb Is Turkey rattled by Russian-Kurdish deal? Is Turkey rattled by Russian-Kurdish deal? A",
+    "output": "orbital",
+    "expected_next": "UTH",
+    "predicted_next": "orbital",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 74,
+    "step": 468,
+    "input": "Next we have decided to surprise you by ofering a new game in which you will have by your side one of your favourite disney princesses. Because we",
+    "output": "laim",
+    "expected_next": "like",
+    "predicted_next": "laim",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 75,
+    "step": 475,
+    "input": "Background Born in Puerto Rico. Trained at Johnson & Wales University in Norfolk, Virginia. Worked at The Frog and the Redneck in Richmond,",
+    "output": "].",
+    "expected_next": "Virginia",
+    "predicted_next": "].",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 76,
+    "step": 481,
+    "input": "Grab this awesome deal while you can at macys.com. Get to shopping! This macys.com coupon could save you a ton",
+    "output": "assisting",
+    "expected_next": "of",
+    "predicted_next": "assisting",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 77,
+    "step": 491,
+    "input": "The breeding work Genetics and selection Basic Animal Breeding by Admini General biology is the subject of the basic laws of life phenomena. The importance of",
+    "output": "Superman",
+    "expected_next": "biology",
+    "predicted_next": "Superman",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 78,
+    "step": 497,
+    "input": "You are here: Home / Industry Insider / Lavish Locations Lavish Locations The early beginnings and luxury dispensaries of",
+    "output": "icyon",
+    "expected_next": "entrepreneur",
+    "predicted_next": "icyon",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 79,
+    "step": 500,
+    "input": "The Lord of Castle Black (Viscount of Adrilankha, Book 2) Synopsis of The Lord of Castle Black (Viscount of Ad",
+    "output": "mitting",
+    "expected_next": "r",
+    "predicted_next": "mitting",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 80,
+    "step": 509,
+    "input": "Bujumbura calling: preventing and responding to conflict in Burundi 12 months on from the beginning of a violent political crisis in Burundi,",
+    "output": "logical",
+    "expected_next": "a",
+    "predicted_next": "logical",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 81,
+    "step": 514,
+    "input": "Access Floor is used greatly in the control room or mornintoring center of diiferent buidings. The cabling is complex in control",
+    "output": "1575,",
+    "expected_next": "to",
+    "predicted_next": "1575,",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 82,
+    "step": 519,
+    "input": "Movie with ready to shoot script which has a lot of scope for dynamic visual effects and thrilling experience for audience. Completed Graduation in Visual Commm",
+    "output": "credits",
+    "expected_next": "unic",
+    "predicted_next": "credits",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 83,
+    "step": 528,
+    "input": "0152003940 some wear on edges and corners slightly loose binding, stains on cover and some pages LIGHT AT LAST",
+    "output": "Morkery",
+    "expected_next": "PA",
+    "predicted_next": "Morkery",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 84,
+    "step": 532,
+    "input": "BIJAC  \u2047  Articles by: admin In Memory of: Sharon Nobue Harris A Tribute to Sharon Harris Sharon Nobue Harris passed away December 30,",
+    "output": "Manning",
+    "expected_next": "2022.",
+    "predicted_next": "Manning",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 85,
+    "step": 540,
+    "input": "A couple weeks ago my brother Brandon Graduated college with that degree in Computer Sciences! I'm so proud of him. We spent the day in Mari",
+    "output": "shoulder",
+    "expected_next": "etta",
+    "predicted_next": "shoulder",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 86,
+    "step": 545,
+    "input": "We contacted the authorized repair company when our upper oven door fogged up when using the lower oven. We thought the door was sealed like",
+    "output": "foundation",
+    "expected_next": "a",
+    "predicted_next": "foundation",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 87,
+    "step": 546,
+    "input": "Support Us!!!! | iMojado - Free download mac software and games! Every dream is worthy of you for your support! I want to change",
+    "output": "\u2013192",
+    "expected_next": "my",
+    "predicted_next": "\u2013192",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 88,
+    "step": 552,
+    "input": "It's always nice when someone mentions our research on their websites or on the news. Sean regularly gets called up for TV slots but today we're",
+    "output": "othy",
+    "expected_next": "very",
+    "predicted_next": "othy",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 89,
+    "step": 558,
+    "input": "Myth and the Russian Pogroms, Part 2: Inventing Atrocities May 11, 2012 /80 Comments/in Anti-Jewish",
+    "output": "Cous",
+    "expected_next": "Writing",
+    "predicted_next": "Cous",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 90,
+    "step": 559,
+    "input": "Diagnostic Medical Systems SA (DGM) - Medical Equipment - Deals and Alliances Profile Report Title Diagnostic Medical",
+    "output": "766",
+    "expected_next": "Systems",
+    "predicted_next": "766",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 91,
+    "step": 566,
+    "input": "Costa Rica News \u2013 Three San Jose markets are preparing for a great change. They will, over some time, become an attractive tourist loop.",
+    "output": "Boulogne",
+    "expected_next": "The",
+    "predicted_next": "Boulogne",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 92,
+    "step": 572,
+    "input": "Football All-American Gage Larvadain having immediate impact for Southeastern hoops Southland conference Freshman of the Year and Freshman All-",
+    "output": "1523.",
+    "expected_next": "American",
+    "predicted_next": "1523.",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 93,
+    "step": 579,
+    "input": "Package contains 0.5 grams, approximately 4,500 Oregano, Greek Herb Seeds. Germination: 12 - 18 days. Sprinkle seeds",
+    "output": "conceptual",
+    "expected_next": "on",
+    "predicted_next": "conceptual",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 94,
+    "step": 582,
+    "input": "Based on customer reviews, it is without a doubt that Puffy mattress is one of the most comfortable mattresses that you could ever",
+    "output": "athing",
+    "expected_next": "purchase",
+    "predicted_next": "athing",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 95,
+    "step": 590,
+    "input": "See and hear our new Steinways and get a behind-the-scenes tour of the Steinway factory. UConn's most successful football coach",
+    "output": "manor",
+    "expected_next": "is",
+    "predicted_next": "manor",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 96,
+    "step": 595,
+    "input": "Latest Free Football Betting and Sports Betting Tips from sportingways.com Take Johnson at 40/1 for US Money List You will have to wait a",
+    "output": "citation",
+    "expected_next": "full",
+    "predicted_next": "citation",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 97,
+    "step": 605,
+    "input": "Karen and I recently went to Conyngham, Pennsylvania to revisit one of the best breweries we've found on our camping trips,",
+    "output": "Latino",
+    "expected_next": "Con",
+    "predicted_next": "Latino",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 98,
+    "step": 606,
+    "input": "The West Reservoir Centre is a beautiful, versatile and historical 1930s red-brick tower that features fascinating structural design elements, flood",
+    "output": "ivic",
+    "expected_next": "ed",
+    "predicted_next": "ivic",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 99,
+    "step": 612,
+    "input": "METAIRIE, La. (AP) \u2014 The New Orleans Saints have placed P.J. Williams on injured reserve, three days after",
+    "output": "Rhodes",
+    "expected_next": "the",
+    "predicted_next": "Rhodes",
+    "accuracy": 0.0
+  },
+  {
+    "chunk": 100,
+    "step": 620,
+    "input": "Distribution: Indo-West Pacific: Cocos-Keeling Islands and the South China Sea to the Gilbert Islands, north to the Ryuky",
+    "output": "idemi",
+    "expected_next": "u",
+    "predicted_next": "idemi",
+    "accuracy": 0.0
   }
 ]
