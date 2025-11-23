@@ -37,7 +37,8 @@ public:
     void processInput(const std::vector<float>& inputs);
 
     /**
-     * @brief Retrieve firing state (spikes) of output neurons
+     * @brief Retrieve voltage-based activity of output neurons
+     * Returns continuous signal (0-1) based on membrane potential
      */
     std::vector<float> getNeuronOutputs();
 
