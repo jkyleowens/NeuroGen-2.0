@@ -5,6 +5,7 @@
 #include <iostream>
 #include <random>
 #include <cmath>
+#include <algorithm>
 
 namespace neurogen {
 
@@ -161,14 +162,32 @@ void NeuralEngine::processInput(const std::vector<float>& inputs) {
 
 std::vector<float> NeuralEngine::getNeuronOutputs() {
     std::vector<float> outputs(num_outputs_);
-    
-    std::vector<uint8_t> host_spikes(num_outputs_);
-    cudaMemcpy(host_spikes.data(), network_state_.d_spikes, num_outputs_ * sizeof(uint8_t), cudaMemcpyDeviceToHost);
-    
+
+    // ✅ VOLTAGE-BASED READOUT (continuous signal)
+    // Read membrane potentials instead of binary spikes
+    std::vector<float> host_voltages(num_outputs_);
+    cudaMemcpy(host_voltages.data(), network_state_.d_voltage,
+               num_outputs_ * sizeof(float), cudaMemcpyDeviceToHost);
+
+    // Convert voltage to activity signal
+    // Voltage range: -65mV (rest) to ~+30mV (spike peak)
+    // Map to [0, 1] range with sigmoid-like function
     for(size_t i=0; i<num_outputs_; ++i) {
-        outputs[i] = (float)host_spikes[i];
+        float v = host_voltages[i];
+
+        // Shift so resting potential (-65) maps to 0
+        float shifted = v + 65.0f;  // Now: 0 (rest) to 95 (peak)
+
+        // Rectify to remove sub-threshold activity
+        float rectified = std::max(0.0f, shifted);
+
+        // Normalize to [0, 1] with sigmoid activation
+        // Center around 10mV above rest (typical active neurons)
+        float normalized = 1.0f / (1.0f + std::exp(-(rectified - 10.0f) * 0.1f));
+
+        outputs[i] = normalized;
     }
-    
+
     return outputs;
 }
 
