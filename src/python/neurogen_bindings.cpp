@@ -81,7 +81,7 @@ public:
         gpu_decoder_config.temperature = 1.0f;
         gpu_decoder_config.top_k = 50;
         gpu_decoder_config.top_p = 0.9f;
-        gpu_decoder_config.strategy = GPUDecoder::SamplingStrategy::GREEDY; // Start with greedy for stability
+        gpu_decoder_config.strategy = GPUDecoder::SamplingStrategy::TOP_K; // Use TOP_K sampling to satisfy the updated training algorithm requirements
         gpu_decoder_config.gpu_device = gpu_device_;
         
         gpu_decoder_ = std::make_shared<GPUDecoder>(gpu_decoder_config, embedding_);
@@ -94,57 +94,48 @@ public:
     }
     
     /**
-     * Train on a single batch (next-token prediction)
-     * @param input_ids: List of input token IDs
-     * @param target_ids: List of target token IDs (input shifted by 1)
-     * @return: Tuple of (loss, accuracy)
+     * Train on a single step (predict exactly ONE next token)
+     * @param input_ids: List of input token IDs (context)
+     * @param target_ids: List of target token IDs (same length, but we only use last one)
+     * @return: Tuple of (loss, accuracy, predicted_token_id)
      */
-    std::pair<float, float> train_step(
+    std::tuple<float, float, int> train_step(
         const std::vector<int>& input_ids, 
         const std::vector<int>& target_ids) {
         
-        if (input_ids.size() != target_ids.size()) {
-            throw std::runtime_error("Input and target sizes must match");
+        // Require non-empty input and at least one target token
+        if (input_ids.empty() || target_ids.empty()) {
+            throw std::runtime_error("Input and target must be non-empty");
         }
         
-        float total_loss = 0.0f;
-        int correct_predictions = 0;
-        int total_tokens = 0;
+        // We no longer require input_ids.size() == target_ids.size().
+        // Python now passes a full context sequence as input_ids and a
+        // single next-token target as target_ids[0]. We always use the
+        // last target token as the supervised label for this step.
         
-        // Process each token in sequence
+        // 1) Run full context through embedding + brain
         for (size_t i = 0; i < input_ids.size(); ++i) {
-            // 1. Embed input token
             std::vector<float> embedded = embedding_->encodeById(input_ids[i]);
-            
-            // 2. Process through brain
             brain_->cognitiveStep(embedded);
-            
-            // 3. Get output from Broca (language production area)
-            std::vector<float> brain_output = brain_->getBrocaOutput();
-            
-            // 4. Decode to vocabulary distribution using GPU decoder (50-100x faster!)
-            int predicted_token = gpu_decoder_->decodeAndSample(brain_output);
-            
-            // 5. Compute loss (cross-entropy approximation via negative log likelihood)
-            // For simplicity, using 0/1 loss for now
-            float token_loss = (predicted_token == target_ids[i]) ? 0.0f : 1.0f;
-            total_loss += token_loss;
-            
-            // 6. Track accuracy
-            if (predicted_token == target_ids[i]) {
-                correct_predictions++;
-            }
-            total_tokens++;
-            
-            // 7. Apply reward signal (dopamine modulation for learning)
-            float reward = (predicted_token == target_ids[i]) ? 1.0f : -0.5f;
-            brain_->modulateGlobalState(reward, 0.5f, 0.5f); // dopamine, serotonin, norepinephrine
         }
-        
-        float avg_loss = total_loss / std::max(total_tokens, 1);
-        float accuracy = (float)correct_predictions / std::max(total_tokens, 1);
-        
-        return {avg_loss, accuracy};
+
+        // 2) Get final Broca output and decode/sample with probability
+        std::vector<float> brain_output = brain_->getBrocaOutput();
+        auto token_and_prob = gpu_decoder_->decodeAndSampleWithProb(brain_output);
+        int predicted_token = token_and_prob.first;
+        float predicted_prob = token_and_prob.second;
+
+        int target_token = target_ids.back();
+
+        const float eps = 1e-8f;
+        float nll = -std::log(std::max(predicted_prob, eps));
+        float loss = nll;
+        float accuracy = (predicted_token == target_token) ? 1.0f : 0.0f;
+
+        float reward = -loss;
+        brain_->modulateGlobalState(reward, 0.5f, 0.5f);
+
+        return std::make_tuple(loss, accuracy, predicted_token);
     }
     
     /**
@@ -258,12 +249,12 @@ PYBIND11_MODULE(libneurogen, m) {
         .def("train_step", &NeuroGenModel::train_step,
              py::arg("input_ids"),
              py::arg("target_ids"),
-             "Train on a batch with next-token prediction\n\n"
+             "Train on a batch with next-token prediction (single-step)\n\n"
              "Args:\n"
              "    input_ids: List of input token IDs\n"
-             "    target_ids: List of target token IDs\n\n"
+             "    target_ids: List of target token IDs (same length as input_ids)\n\n"
              "Returns:\n"
-             "    Tuple of (loss, accuracy)")
+             "    Tuple of (loss, accuracy, predicted_token_id)")
         .def("generate", &NeuroGenModel::generate,
              py::arg("prompt_ids"),
              py::arg("max_length") = 100,

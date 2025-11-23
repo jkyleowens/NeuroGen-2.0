@@ -505,6 +505,33 @@ int GPUDecoder::decodeAndSample(const std::vector<float>& neural_output) {
     return decodeAndSampleGPU(d_neural_input_);
 }
 
+std::pair<int, float> GPUDecoder::decodeAndSampleWithProb(const std::vector<float>& neural_output) {
+    // Copy input activations to GPU workspace
+    CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
+                                config_.output_dim * sizeof(float),
+                                cudaMemcpyHostToDevice, stream_));
+
+    // Decode to probabilities on GPU
+    float* d_probs = decodeGPU(d_neural_input_);
+
+    // Sample a token using the configured sampling strategy
+    int token_id = sampleTokenGPU(d_probs);
+
+    // Copy full probability distribution back to host (already allocated pinned buffer)
+    CUDA_CHECK(cudaMemcpyAsync(h_probabilities_, d_probs,
+                                config_.vocab_size * sizeof(float),
+                                cudaMemcpyDeviceToHost, stream_));
+    CUDA_CHECK(cudaStreamSynchronize(stream_));
+
+    // Extract probability of the sampled token; guard against out-of-range indices
+    float prob = 0.0f;
+    if (token_id >= 0 && token_id < config_.vocab_size) {
+        prob = h_probabilities_[token_id];
+    }
+
+    return std::make_pair(token_id, prob);
+}
+
 std::string GPUDecoder::decodeToString(const std::vector<float>& neural_output) {
     int token_id = decodeAndSample(neural_output);
     // TokenEmbedding doesn't have decodeString, return token ID as string

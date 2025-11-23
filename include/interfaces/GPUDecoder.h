@@ -66,6 +66,13 @@ public:
     int decodeAndSample(const std::vector<float>& neural_output);
 
     /**
+     * @brief Decode, sample, and also return the sampled token probability (CPU interface)
+     * @param neural_output Output vector from Broca's Area (CPU)
+     * @return Pair of (sampled token ID, sampled token probability)
+     */
+    std::pair<int, float> decodeAndSampleWithProb(const std::vector<float>& neural_output);
+
+    /**
      * @brief Decode neural output to string token
      */
     std::string decodeToString(const std::vector<float>& neural_output);

@@ -1,308 +1,52 @@
 [
   {
-    "step": 0,
-    "input": "J.J. Abrams Returns To Write And Direct 'Star Wars: Episode IX' 09/12/2017 11:11 am ET Updated Sep 12, 2017 The return of the J.J. By Bill Bradley U",
-    "output": "Parliament Parliament Parliament Parliament Parliament Parliament Parliament\u0113\u0113\u0113\u0113\u0113\u0113\u0113\u0113 Apust Apust Apust Apust Apust Apust Apust Apust performance performance performance performance performance performance performance performancerigrigrigrigrigrigrigrig Doug",
-    "accuracy": 0.0
+    "chunk": 1,
+    "step": 1,
+    "input": "J.J. Abrams Returns To Write And Direct 'Star Wars: Episode IX' 09/12/2017 11:11 am ET Up",
+    "output": "Pleas",
+    "expected_next": "d",
+    "predicted_next": "Pleas",
+    "accuracy": 0.0,
+    "sample_index": 0
   },
   {
-    "step": 5,
-    "input": "the andreas [dot] humm unifr [dot] ch (program coordinator) to receive information about the Joint Master's program. Holders of a Bachelor's degree in computer science from a University of Applied Sciences",
-    "output": "enh enh enh enh enh enh enh Ernest Ernest Ernest Ernest Ernest Ernest Ernest Ernest Dip Dip Dip Dip Dip Dip Dip Dip fungi fungi fungi fungi fungi fungi fungi fungi communities communities communities communities communities communities communities communitiesplified",
-    "accuracy": 0.0
+    "chunk": 2,
+    "step": 9,
+    "input": "The new U.S. National Defense Strategy: A \"good deal\" for the Military-Industrial Complex Feb 9th, 2018 + In this",
+    "output": "Irish",
+    "expected_next": "article",
+    "predicted_next": "Irish",
+    "accuracy": 0.0,
+    "sample_index": 0
   },
   {
-    "step": 10,
-    "input": "Reader reviews and comments on Academy Street, plus links to write your own review. Academy Street is the first novel by Irish author, Mary Costello. It chronicles the life of Teresa Lohan, from her youth in rural Ireland in",
-    "output": "uidheuidhe 2:22 2:22 2:22 2:22 2:22 2:22 2:22 2:22insaleinsaleinsaleinsaleinsaleinsaleinsaleinsale Gru Gru Gru Gru Gru Gru Gru Gru Dramatic Dramatic Dramatic Dramatic Dramatic Dramatic Dramatic Dramaticeniaeniaeniaeniaeniaenia",
-    "accuracy": 0.0
+    "chunk": 3,
+    "step": 14,
+    "input": "When you have an event, and you are expecting a lot of people example for a wedding then you will need a corporate catering company that will",
+    "output": "political",
+    "expected_next": "help",
+    "predicted_next": "political",
+    "accuracy": 0.0,
+    "sample_index": 0
   },
   {
-    "step": 15,
-    "input": "Santander extends shared parental leave to grandparents Santander, which employs around 600 people in Glasgow, has been judged one of The Times Top 100 Graduate Employers for 2016-17. The prestigious rankings, now in their eighteenth year, are",
-    "output": "Iranica Iranica Iranica Iranica Iranica Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Clovelly Clovelly Clovelly Clovelly Clovelly Clovelly Clovelly Clovelly Is Is Is Is Is Is Is Isctuaryctuaryctuaryctuaryctuaryctuaryctuaryctuary 2:22 2:22 2:22",
-    "accuracy": 0.0
-  },
-  {
+    "chunk": 4,
     "step": 20,
-    "input": "Invisible Hands VOICES FROM THE GLOBAL ECONOMY Edited by Corrine Goria Foreword by Kalpona Akter The men and women in Invisible Hands reveal the human",
-    "output": "Gru Gru Gru known known known known known known known known US US US US US US US US Hold Hold Hold Hold Hold Hold Hold Hold Gong Gong Gong Gong Gong Gong Gong Gong eldest eldest eldest eldest eldest",
-    "accuracy": 0.0
+    "input": "Inquest into Albanian seaman's death postponed as official investigation continues Bethany Whymark Published: 4:37 PM February 8, 2019",
+    "output": "Reno",
+    "expected_next": "Alfred",
+    "predicted_next": "Reno",
+    "accuracy": 0.0,
+    "sample_index": 0
   },
   {
-    "step": 25,
-    "input": "Enjoy these welcoming and amenity-rich communities you can call home. Located on Madison's south side, the Burr Oaks community provides an open and friendly atmosphere for individuals ages 62 and older with low income. Beautiful apartments",
-    "output": "increased increased increased embassies embassies embassies embassies embassies embassies embassies embassies Rugby Rugby Rugby Rugby Rugby Rugby Rugby Rugbyestivalestivalestivalestivalestivalestivalestivalestival escaping escaping escaping escaping escaping escaping escaping escaping Utah Utah Utah Utah Utah",
-    "accuracy": 0.0
-  },
-  {
-    "step": 30,
-    "input": "This beautiful DIY Citrus Mint hand soap is made with essential oils and makes a great gift! So who says that soap needs to be purely utilitarian? I don't know about you, but when it comes to my hand soap",
-    "output": "Inf Inf Inf Inf Inf bound bound bound bound bound bound bound bound Williams Williams Williams Williams Williams Williams Williams Williamsfreshfreshfreshfreshfreshfreshfreshfresheniaeniaeniaeniaeniaeniaeniaenia Central Central Central",
-    "accuracy": 0.0
-  },
-  {
-    "step": 35,
-    "input": "By now, fans may have heard Slaughterhouse's stadium anthem track and next single, \"My Life,\" featuring Cee Lo Green on the hook. Well, XXL recently asked the four-man contingent, consisting of Cro",
-    "output": "iodifusi\u00f3niodifusi\u00f3niodifusi\u00f3niodifusi\u00f3niodifusi\u00f3niodifusi\u00f3niodifusi\u00f3niodifusi\u00f3n Metcalf Metcalf Metcalf Metcalf Metcalf Metcalf Metcalf Metcalfriousriousriousriousriousriousriousrious defines defines defines defines defines defines defines defines jury jury jury jury jury jury jury jury",
-    "accuracy": 0.0
-  },
-  {
-    "step": 40,
-    "input": "Savannah Steyn (Londres, 2000) es una actriz brit\u00e1nica conocida por interpretar el personaje de la polic\u00eda espacial Ash Harper en el drama de ciencia ficci\u00f3n",
-    "output": "Gardner Gardner Gardner Gardner Gardner Gardner Gardner Gong Gong Gong Gong Gong Gong Gong Gong eldest eldest eldest eldest eldest eldest eldest eldest Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Babe Babe Babe Babe Babe Babe Babe Babe criminal",
-    "accuracy": 0.0
-  },
-  {
-    "step": 45,
-    "input": "Q: print dictionary keys and values in one column in tcl I am new learner of tcl scripting language. I am using TCL version 8.5. I read text file through tcl script and count similar words frequency. I",
-    "output": "1908) 1908) 1908) 1908) 1908) 1908) [2 [2 [2 [2 [2 [2 [2 [2overeignovereignovereignovereignovereignovereignovereignovereign Utah Utah Utah Utah Utah Utah Utah Utah Qing Qing Qing Qing Qing Qing Qing Qing \u00b7 \u00b7",
-    "accuracy": 0.0
-  },
-  {
-    "step": 50,
-    "input": "home bar top ideas. Hello dear visitor. In the present new period, all information regarding the growth and development of technologies is extremely easy to get. You could find a variety of reports, suggestions, articles, all over the world",
-    "output": "926-3. cerem cerem cerem cerem cerem cerem cerem ceremershipershipershipershipershipershipershipershipjasjasjasjasjasjasjasjas Inf Inf Inf Inf Inf Inf Inf Inf Vermont Vermont Vermont Vermont Vermont Vermont Vermont",
-    "accuracy": 0.0
-  },
-  {
-    "step": 55,
-    "input": "Lenin was sent into Russia by the Germans in the same way that you might send a phial containing a culture of typhoid or cholera to be poured into the water supply of a great city, and it worked with amazing accur",
-    "output": "Metcalf Metcalf Metcalf Metcalf Metcalf Metcalf Metcalf 1979) 1979) 1979) 1979) 1979) 1979) 1979) 1979) SESAC SESAC SESAC SESAC SESAC SESAC SESAC SESACRowRowRowRowRowRowRowRow\u30ac\u30ac\u30ac\u30ac\u30ac\u30ac\u30ac\u30ac Utah",
-    "accuracy": 0.0
-  },
-  {
-    "step": 60,
-    "input": "Handmade Natural Australian Parti Sapphire Solitaire Ring. Centre stone is an approx 1.20ct - 6.30 Round Cut Australian Sapphire from Rubyvale QLD in a simple 6 claw setting. Band Thick",
-    "output": "DonoughiSigniSigniSigniSigniSigniSigniSigniSign (1916 (1916 (1916 (1916 (1916 (1916 (1916 (1916 escaping escaping escaping escaping escaping escaping escaping escaping 2:22 2:22 2:22 2:22 2:22 2:22 2:22 2:22ancellorancellorancellorancellorancellorancellorancellor",
-    "accuracy": 0.005291005130857229
-  },
-  {
-    "step": 65,
-    "input": "Subject matter eligibility jurisprudence under 35 U.S.C.  \u2047  101 has been in flux in recent years, following the Supreme Court's decisions in Mayo v. Prometheus and Alice Corp. v.",
-    "output": "Architectural Architectural dual dual dual dual dual dual dual dual Harris Harris Harris Harris Harris Harris Harris Harris Qing Qing Qing Qing Qing Qing Qing Qing suffix suffix suffix suffix suffix suffix suffix suffixjectjectjectjectjectject",
-    "accuracy": 0.0
-  },
-  {
-    "step": 70,
-    "input": "Morocco eliminates Spain on penalties in the round of 16 of the World Cup Home \u00bb Morocco eliminates Spain on penalties in the round of 16 of the World Cup December 6, 2022December 6, 2022 The match: 0-0 (3-0 on pen",
-    "output": "Alliance Alliance hosting hosting hosting hosting hosting hosting hosting hosting Berok Berok Berok Berok Berok Berok Berok Berok adapted adapted adapted adapted adapted adapted adapted adapted Cantador Cantador Cantador Cantador Cantador Cantador Cantador Cantador Utah Utah Utah Utah Utah Utah",
-    "accuracy": 0.0
-  },
-  {
-    "step": 75,
-    "input": "Connection Issuse after finished print & PC wake-up from sleep. As I am getting into bigger & longer prints I am starting to now notice a issue with connecting to Repetier after I wake-up my PC from its sleep",
-    "output": "editor editor editor editor editor joke joke joke joke joke joke joke joke Ark Ark Ark Ark Ark Ark Ark Ark Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadh Donnchadhalbeckalbeckalbeckalbeckalbeckalbeckalbeckalbeck NI NI NI",
-    "accuracy": 0.0
-  },
-  {
-    "step": 80,
-    "input": "On five acres along Three Mile Harbor in Springs, East Hampton Point sits amid an English garden with sailboats swaying in the distance. The country estate vibe gives way to a more lively scene at the property's 58-slip",
-    "output": "Dardan Dardan Dardan Dardan Dardan Dardanminiminiminiminiminiminiminimini Rugby Rugby Rugby Rugby Rugby Rugby Rugby Rugby Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Mickey Mickey Mickey Mickey Mickey Mickey Mickey Mickey Reservation Reservation",
-    "accuracy": 0.0
-  },
-  {
-    "step": 85,
-    "input": "Alejandro Korn es una estaci\u00f3n ferroviaria ubicada en la ciudad hom\u00f3nima, en el partido de San Vicente, Gran Buenos Aires, Argentina. Servicios Es la estaci\u00f3n cabec",
-    "output": "VononesVonones 1988 1988 1988 1988 1988 1988 1988 1988areiraareiraareiraareiraareiraareiraareiraareira summer summer summer summer summer summer summer summerabeasabeasabeasabeasabeasabeasabeasabeasXtXtXtXtXtXt",
-    "accuracy": 0.0
-  },
-  {
-    "step": 90,
-    "input": "Under DS Think Tank's Event Management division, we offer exceptional event marketing solutions services. Our expertise in event planning will leave an impact to your market audience. Our team will work hand in hand with our clients so that we can",
-    "output": "Aemstel Aemstel Aemstel Aemstelalbeckalbeckalbeckalbeckalbeckalbeckalbeckalbeckmbiambiambiambiambiambiambiambiaouncerouncerouncerouncerouncerouncerouncerouncerellanellanellanellanellanellanellanellaneroeroeroero",
-    "accuracy": 0.0
-  },
-  {
-    "step": 95,
-    "input": "Jarvis St. water main replacement moves at a trickle By Jack LakeyThe Fixer Fri., Jan. 25, 2019timer2 min. read Traffic-snarling construction for at least six months on Jarvis St.",
-    "output": "operatedoperatedoperatedoperatedoperatedoperatedoperatedoperated085-57085-57085-57085-57085-57085-57085-57085-57 Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Pun Pun Pun Pun Pun Pun Pun Punrijrijrijrijrijrijrijrij",
-    "accuracy": 0.0
-  },
-  {
-    "step": 100,
-    "input": "Iconic observatory witnessed in James Bond film \"GoldenEye\" goes darkish soon after enormous telescope located mysteriously damaged A significant radio telescope designed famed as the backdrop for a pivotal scene in James Bond film \"",
-    "output": "2:22 2:22 2:22 2:22 2:22 2:22 2:22 hide hide hide hide hide hide hide hide hosting hosting hosting hosting hosting hosting hosting hosting Hitch Hitch Hitch Hitch Hitch Hitch Hitch HitchESESESESESESESES 31.",
-    "accuracy": 0.0
-  },
-  {
-    "step": 105,
-    "input": "When you create a social media profile, it's important to have a plan for the content that you will be publishing. A content calendar can help you plan ahead and will lead to higher quality and more consistent content that engages your audience effectively. MU",
-    "output": "ohilaohilaohilaohilaohilaohilaohila Craig Craig Craig Craig Craig Craig Craig Craig charge charge charge charge charge charge charge charge vacuum vacuum vacuum vacuum vacuum vacuum vacuum vacuum editor editor editor editor editor editor editor editor 2004.",
-    "accuracy": 0.0
-  },
-  {
-    "step": 110,
-    "input": "Q: If $\\sum_{n=1} \u2047 \\infty E(X_n-X_{n-1}) \u2047 2/b_n \u2047 2  \u2047  \\infty$, then $X_n/",
-    "output": "Pract Pract Pract Pract Pract Pract (1995), (1995), (1995), (1995), (1995), (1995), (1995), (1995), Blaise Blaise Blaise Blaise Blaise Blaise Blaise Blaise Pasar Pasar Pasar Pasar Pasar Pasar Pasar Pasar 1829 1829 1829 1829 1829 1829 1829 1829 Erneuerbare Erneuerbare",
-    "accuracy": 0.0
-  },
-  {
-    "step": 115,
-    "input": "The Tacoma-Pierce County Department of Health has lifted the algae caution advisory. For the update, click here. Tacoma-Pierce County Health Department says the Lake Tapps caution advisory for algae",
-    "output": "Woer Woer Woer Woer WoerZUZUZUZUZUZUZUZU confess confess confess confess confess confess confess confess Goodan Goodan Goodan Goodan Goodan Goodan Goodan Goodanapongapongapongapongapongapongapongapong Aalo Aalo Aalo",
-    "accuracy": 0.0
-  },
-  {
-    "step": 120,
-    "input": "Castel Sant'Angelo \u2013 Hadrian's Mausoleum by Thomas Dowson | Italy, Rome | 0 comments Across the St Angelo Bridge from the bulk of the ancient city of Rome and not far from Vatican",
-    "output": "}}}}}}}} Moldavia Moldavia Moldavia Moldavia Moldavia Moldavia Moldavia Moldavia Locke Locke Locke Locke Locke Locke Locke Lockeeringeringeringeringeringeringeringering Hitch Hitch Hitch Hitch Hitch Hitch Hitch Hitch",
-    "accuracy": 0.0
-  },
-  {
-    "step": 125,
-    "input": "Belinda G. Buchanan - author of edgy, women's fiction and mystery... WINTER'S MALICE AFTER ALL IS SAID AND DONE: A Novel of Infidel",
-    "output": "increased increased increased Pall Pall Pall Pall Pall Pall Pall Pall ancestry ancestry ancestry ancestry ancestry ancestry ancestry ancestryokutaokutaokutaokutaokutaokutaokutaokuta 1917 1917 1917 1917 1917 1917 1917 1917 decorative decorative decorative decorative decorative",
-    "accuracy": 0.0
-  },
-  {
-    "step": 130,
-    "input": "French City Installs 187 Solar Panels to Save on Energy Costs, Forgets to Connect Them Officials in the French city of Roubaix recently revealed that the 187 photovoltaic panels that were supposed to",
-    "output": "cope cope cope Vermont Vermont Vermont Vermont Vermont Vermont Vermont VermontGoldGoldGoldGoldGoldGoldGoldGold Gru Gru Gru Gru Gru Gru Gru Gru defines defines defines defines defines defines defines defines Betty Betty Betty Betty Betty",
-    "accuracy": 0.0
-  },
-  {
-    "step": 135,
-    "input": "- Watch the team doing skills drills under the watchful eyes of Wayne Bennett, Kevin Walters, Stephen Kearney & the Football Dept staff. - Meet the players after training for autographs & photos. - Get your Bron",
-    "output": "albeckalbeckalbeckalbeckalbeck generals generals generals generals generals generals generals generals keeper keeper keeper keeper keeper keeper keeper keeper Database Database Database Database Database Database Database Database.).).).).).).).)wheelwheelwheel",
-    "accuracy": 0.0
-  },
-  {
-    "step": 140,
-    "input": "How many playbooks do I need? Hi all, first time posting here, and, I'm still very new to PbtA, but, I've played Dungeon World, ran a teeny tiny bit of Urban Shad",
-    "output": "Qing Qing Qing Qing Qing Qing Qing Qing infect infect infect infect infect infect infect infectladladladladladladladlad corrective corrective corrective corrective corrective corrective corrective corrective Hold Hold Hold Hold Hold Hold Hold Hold",
-    "accuracy": 0.0
-  },
-  {
-    "step": 145,
-    "input": "Hooked on Healthiness  \u2047  Hooked on Pharma Valeant Pharmaceuticals Intl, Inc. Acquisiton & Growth Valeant Pharmaceuticals International, Inc. Valeant Pharmaceuticals International, Inc. is a",
-    "output": "Clovelly Clovelly infect infect infect infect infect infect infect infect regional regional regional regional regional regional regional regionalawsawsawsawsawsawsawsawschechechechechechecheche object object object object object object",
-    "accuracy": 0.0
-  },
-  {
-    "step": 150,
-    "input": "Jimmy Olsen as the Guardian Revealed in 'Supergirl' Season 2 Jimmy Olsen as the Guardian Revealed in Supergirl Season 2 \u2014 October 12th, 2016 The Supergirl Season 2 Premiere on The CW set",
-    "output": "am\u00e1sam\u00e1sam\u00e1sMediaMediaMediaMediaMediaMediaMediaMedia desolate desolate desolate desolate desolate desolate desolate desolate infect infect infect infect infect infect infect infectalbeckalbeckalbeckalbeckalbeckalbeckalbeckalbeck\u0441\u043a\u0430\u044f\u0441\u043a\u0430\u044f\u0441\u043a\u0430\u044f\u0441\u043a\u0430\u044f\u0441\u043a\u0430\u044f",
-    "accuracy": 0.0
-  },
-  {
-    "step": 155,
-    "input": "Daily Correspondents UN House in Abuja returns to life eight years after Boko Haram attack Almost eight years after Boko Haram bombed the United Nations' House in Abuja, forcing the world body to abandon the place,",
-    "output": "Vinn Vinn Vinn Vinn Vinn Vinn shif shif shif shif shif shif shif shifnextnextnextnextnextnextnextnextontyontyontyontyontyontyontyonty Islam Islam Islam Islam Islam Islam Islam Islam infect infect",
-    "accuracy": 0.0
-  },
-  {
-    "step": 160,
-    "input": "Q: All data in a row. Move observations under each other I have the following data: data  \u2047 - list(list(eventId = 8, subEventName = \"Simple pass\", tags = list( list(",
-    "output": "Aemstel Aemstelrleinrleinrleinrleinrleinrleinrleinrlein before before before before before before before before 2002 2002 2002 2002 2002 2002 2002 2002ontyontyontyontyontyontyontyonty Moro Moro Moro Moro Moro Moro",
-    "accuracy": 0.0
-  },
-  {
-    "step": 165,
-    "input": "The football and netball trip to Barcelona at the start of the Easter break was a huge success. Ninety students from Years 7-13 travelled to Spain where they enjoyed specialised training, lots of competitive match play, a tour of Nou Camp Stadium",
-    "output": "nextnextnextnextnextnextnext partnered partnered partnered partnered partnered partnered partnered partneredVononesVononesVononesVononesVononesVononesVononesVonones voc voc voc voc voc voc voc voc Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsiusually",
-    "accuracy": 0.0
-  },
-  {
-    "step": 170,
-    "input": "Weston Mercury  \u2047  News Council to ensure essential services continue during pandemic Published: 1:19 PM March 18, 2020 Updated: 5:37 PM November 21, 2020 North Somerset Council has said it will ensure it maintains essential services to help people in the community",
-    "output": "prest Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Aemstel Diodorus Diodorus Diodorus Diodorus Diodorus Diodorus Diodorus Diodorus permission permission permission permission permission permission permission permission pointblank pointblank pointblank pointblank pointblank pointblank pointblank pointblank solved solved solved solved solved solved solved",
-    "accuracy": 0.0
-  },
-  {
-    "step": 175,
-    "input": "Play Dragon Orb Slots online. Download our casino with over games. Dragon Orb slot machine is available on mobile and instant play. Use $50 Free Chip. swing, Dragon Orb a non-progressive",
-    "output": "skubskubskubskubskubskubskub fer fer fer fer fer fer fer fer800909800909800909800909800909800909800909800909 Ayden Ayden Ayden Ayden Ayden Ayden Ayden Ayden night night night night night night night nightMedia",
-    "accuracy": 0.0
-  },
-  {
-    "step": 180,
-    "input": "Another season of BBC Radio 4's Dangerous Visions has begun airing. Programs are spread across three weeks, ending July 14. All dramas and readings will be available to listen to online for 30 days. You can also download each drama via",
-    "output": "Munich Munich Munich Munich Munich\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430\u0441\u0442\u0430 WC WC WC WC WC WC WC WC pursuing pursuing pursuing pursuing pursuing pursuing pursuing pursuingframeframeframeframeframeframeframeframe arithmetic arithmetic arithmetic",
-    "accuracy": 0.0
-  },
-  {
-    "step": 185,
-    "input": "Prostate cancer is an important public health problem. It is an excellent candidate disease for chemo-prevention because prostate cancer is typically slow growing and is usually diagnosed in elderly males. Pygeum africanum (Prunus af",
-    "output": "ribleribleribleribleribleribleribleribleultyultyultyultyultyultyultyulty Stiftung Stiftung Stiftung Stiftung Stiftung Stiftung Stiftung Stiftung Paltz Paltz Paltz Paltz Paltz Paltz Paltz Paltz depicts depicts depicts depicts depicts depicts depicts depicts",
-    "accuracy": 0.0
-  },
-  {
-    "step": 190,
-    "input": "Product prices and availability are accurate as of 2019-04-25 05:33:01 UTC and are subject to change. Any price and availability information displayed on http://www.amazon.com/ at the time of purchase",
-    "output": "olmolmolmolmolmolmolm Cerem Cerem Cerem Cerem Cerem Cerem Cerem Cerem Guido Guido Guido Guido Guido Guido Guido Guido Seven Seven Seven Seven Seven Seven Seven Seven 22 22 22 22 22 22 22 22 tires",
-    "accuracy": 0.0
-  },
-  {
-    "step": 195,
-    "input": "the Red Tail Lodge of Mountain Creek Resorts in Vernon, NJ. Featuring live: From Good Homes!!!! Newton Medical Center has joined with several community partners to form Altitude...an empowerment program for 8th graders in",
-    "output": "downsdowns7,657,657,657,657,657,657,657,65 Gru Gru Gru Gru Gru Gru Gru Gruelfelfelfelfelfelfelfelfathingathingathingathingathingathingathingathingxtsxtsxtsxtsxtsxts",
-    "accuracy": 0.0
-  },
-  {
-    "step": 200,
-    "input": "PASSOVER.....PREPARATIONS FOR THE FESTIVE SEASON. Rona, this looks terrific and I will def get a few from you. Your blog is always wonderful",
-    "output": "tiresuneuneuneuneuneuneuneune Janvi Janvi Janvi Janvi Janvi Janvi Janvi Janvi night night night night night night night night Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi Letsatsi incorporated incorporated incorporated incorporated incorporated incorporated incorporated",
-    "accuracy": 0.0
-  },
-  {
-    "step": 205,
-    "input": "The 172279th positive integer is an odd prime number that follows the number 172278 and comes before 172280. One hundred seventy-two thousand two hundred seventy-nine is 6 digits long. Q: Is 172279",
-    "output": "Database Database Database Databasecondenscondenscondenscondenscondenscondenscondenscondens Gru Gru Gru Gru Gru Gru Gru Gru\u00f3d\u00f3d\u00f3d\u00f3d\u00f3d\u00f3d\u00f3d\u00f3dciesciesciesciesciesciesciescies Peng Peng Peng Peng",
-    "accuracy": 0.0
-  },
-  {
-    "step": 210,
-    "input": "Exhibit 10.74 EMPLOYMENT AGREEMENT THIS EMPLOYMENT AGREEMENT is entered into as of the 1 day of October 1997, by and",
-    "output": "ainsainsainsainsainsainsains boyfriend boyfriend boyfriend boyfriend boyfriend boyfriend boyfriend boyfriend Database Database Database Database Database Database Database Database Nieuwenhu Nieuwenhu Nieuwenhu Nieuwenhu Nieuwenhu Nieuwenhu Nieuwenhu Nieuwenhu Vermont Vermont Vermont Vermont Vermont Vermont Vermont Vermont kiss",
-    "accuracy": 0.0
-  },
-  {
-    "step": 215,
-    "input": "L'Aimant was created for Fran\u00e7ois Coty by Vincent Roubert. Roubert had become Coty's lab director in 1923 and had absorbed much of Coty's thinking about perfume. L'",
-    "output": "2 reprinted reprinted reprinted reprinted reprinted reprinted reprinted reprinted producing producing producing producing producing producing producing producing Corn Corn Corn Corn Corn Corn Corn Corn dual dual dual dual dual dual dual dualemeremeremeremeremeremeremer",
-    "accuracy": 0.0
-  },
-  {
-    "step": 220,
-    "input": "You are here: Home / Profiles / Interviews / A Mix of Sarah Bareilles Meets Adele: Interview with Up-and-Coming Singer Samantha Aurelio A Mix of Sarah Bareilles Meets Adele: Interview with Up",
-    "output": "Peng Peng Peng Peng (2010) (2010) (2010) (2010) (2010) (2010) (2010) (2010) Us Us Us Us Us Us Us Us lobes lobes lobes lobes lobes lobes lobes lobesuneuneuneuneuneuneuneuneustedustedustedusted",
-    "accuracy": 0.0
-  },
-  {
-    "step": 225,
-    "input": "Hospitals that are aiming at improving their postoperative pain therapy and that are honestly interested in evaluating their own patients' outcome compared to national averages are our project's target group. As QUIPS includes all patients who have undergone",
-    "output": "afflesendaendaendaendaendaendaendaenda\u00e2m\u00e2m\u00e2m\u00e2m\u00e2m\u00e2m\u00e2m\u00e2muneuneuneuneuneuneuneuneattsattsattsattsattsattsattsatts\u0438\u043d\u0438\u043d\u0438\u043d\u0438\u043d\u0438\u043d\u0438\u043d\u0438\u043d",
-    "accuracy": 0.0
-  },
-  {
-    "step": 230,
-    "input": "Q: How to get number of matching colums count in the same table as another column? I have a table like below. +----+----------+---------+--------+------",
-    "output": "Shia ShiaCindyCindyCindyCindyCindyCindyCindyCindyolmolmolmolmolmolmolmolm \u00f3g \u00f3g \u00f3g \u00f3g \u00f3g \u00f3g \u00f3g \u00f3g night night night night night night night nightld\u0131ld\u0131ld\u0131ld\u0131ld\u0131ld\u0131",
-    "accuracy": 0.0
-  },
-  {
-    "step": 235,
-    "input": "Q: How to reset all components in Vue.js I'm trying to restart my component when the route changes: beforeRouteUpdate (to, from, next) { Object.assign(this.",
-    "output": "Rugby Rugby Rugby Rugby Rugby Rugby Rugby Doune Doune Doune Doune Doune Doune Doune Doune scra scra scra scra scra scra scra scra business business business business business business business business Ark Ark Ark Ark Ark Ark Ark Ark (1837",
-    "accuracy": 0.0
-  },
-  {
-    "step": 240,
-    "input": "She can now flaunt her #wrist aid the crowd and everyone would admire the nice girl. A girl who loves art can explore this amazing mehendi design for her wrist. This is a clean and nice mehendi design for",
-    "output": "Database Database Database cavalry cavalry cavalry cavalry cavalry cavalry cavalry cavalry Pyr Pyr Pyr Pyr Pyr Pyr Pyr Pyr 1739, 1739, 1739, 1739, 1739, 1739, 1739, 1739, disapp disapp disapp disapp disapp disapp disapp disapp Kend Kend Kend Kend Kend",
-    "accuracy": 0.0
-  },
-  {
-    "step": 245,
-    "input": " \u2047 ?php namespace Romeroqe\\AdminTools\\Models; use Illuminate\\Database\\Eloquent\\Model; class ExceptionHandler extends Model { protected $t",
-    "output": "Rol Rol Rol Rol Rol Rol Rol 2016) 2016) 2016) 2016) 2016) 2016) 2016) 2016)afflesafflesafflesafflesafflesafflesafflesaffles rear rear rear rear rear rear rear rear Craig Craig Craig Craig Craig Craig Craig Craig Guido",
-    "accuracy": 0.0
-  },
-  {
-    "step": 250,
-    "input": "Notebook: Greenlief's balancing act; Cup season & more by Julie Williams of AmateurGolf.com see also: U.S. Women's Mid-Amateur Championship, Forest Highlands Golf Club Lauren Green",
-    "output": "k k viable viable viable viable viable viable viable viableThomThomThomThomThomThomThomThomabinetabinetabinetabinetabinetabinetabinetabinet con con con con con con con contranstranstranstranstranstrans",
-    "accuracy": 0.0
+    "chunk": 5,
+    "step": 27,
+    "input": "This week's portion, Shimini, carries us deeper into the book of Leviticus. The first half of the portion is the initiation of the",
+    "output": "Pyr",
+    "expected_next": "sac",
+    "predicted_next": "Pyr",
+    "accuracy": 0.0,
+    "sample_index": 0
   }
 ]

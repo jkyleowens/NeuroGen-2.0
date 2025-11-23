@@ -44,24 +44,6 @@ try:
 except ImportError:
     HAS_ZSTD = False
 
-# Since we don't have a direct python binding library (libneurogen),
-# we will use the compiled binary 'neurogen_sim' as an external process
-# or assume this script is a wrapper around calling the C++ binary.
-# However, the user requested converting this training loop to work with the updated model.
-# The updated model is a C++ binary. 
-# This script originally imported 'libneurogen'.
-# Given the current state of the project (C++ only, no python bindings generated yet),
-# we cannot directly import 'libneurogen'.
-# We need to create python bindings OR rewriting the logic in C++ (which is what src/main.cpp seems to do).
-# But the user asked to "convert this training loop".
-# Assuming the intention is to drive the C++ engine from Python or implementing a similar loop in C++.
-# But since this file is .py, it implies python control.
-# I will generate a python binding interface file `src/python/neurogen_bindings.cpp` 
-# and update the makefile to build a shared library for python.
-
-# BUT first, I will update this script to reflect how it WOULD interact with the bindings
-# once they are built.
-
 @dataclass
 class TrainingMetrics:
     """Real-time training metrics"""
@@ -142,21 +124,34 @@ class VisualizationManager:
         self.text_samples: List[Dict] = []
 
     def update(self, chunk: int, loss: float, accuracy: float, throughput: float,
-               tokens_processed: int, input_text: str = "", output_text: str = ""):
-        """Update metrics and optionally add text sample"""
+               tokens_processed: int, input_text: str = "", output_text: str = "",
+               expected_text: str = "", predicted_text: str = "",
+               step: Optional[int] = None, sample_index: Optional[int] = None):
+        """Update metrics and optionally add text sample.
+
+        `chunk` indexes aggregated training chunks.
+        `step` (if provided) is the true global training step.
+        `sample_index` is the index of the sample within that chunk.
+        """
         self.history['chunks'].append(chunk)
         self.history['loss'].append(loss)
         self.history['accuracy'].append(accuracy)
         self.history['throughput'].append(throughput)
         self.history['tokens_processed'].append(tokens_processed)
 
-        if input_text and output_text:
-            self.text_samples.append({
-                'step': chunk,
+        if input_text and (output_text or expected_text or predicted_text):
+            sample_record = {
+                'chunk': chunk,
+                'step': step if step is not None else chunk,
                 'input': input_text,
-                'output': output_text,
-                'accuracy': accuracy
-            })
+                'output': predicted_text or output_text,
+                'expected_next': expected_text,
+                'predicted_next': predicted_text,
+                'accuracy': accuracy,
+            }
+            if sample_index is not None:
+                sample_record['sample_index'] = sample_index
+            self.text_samples.append(sample_record)
 
     def save_text_samples(self):
         """Save text samples to JSON"""
@@ -351,6 +346,8 @@ class SlimPajamaTrainer:
         self.total_loss = 0.0
         self.tokens_processed = 0
         self.start_time = time.time()
+        self.sample_step = 0  # global per-sample step counter
+        self.latest_checkpoint_path = self.checkpoint_dir / "latest_slimpajama.ckpt"
 
         # Visualization
         self.viz = VisualizationManager(config)
@@ -358,10 +355,6 @@ class SlimPajamaTrainer:
         # Add library path to sys.path to allow loading libneurogen
         sys.path.insert(0, str(Path(__file__).parent / "bin"))
 
-        # Instead of direct python bindings which might not exist yet,
-        # we will output data to files that the C++ engine can consume,
-        # or we assume this script will eventually bind to the C++ code.
-        # For now, I'll keep the structure but warn about the missing binding.
         try:
             # First try standard import (if pybind11 module is built)
             import libneurogen
@@ -378,73 +371,113 @@ class SlimPajamaTrainer:
                 print(f"✓ Found shared library at {lib_path}")
                 print("   (Note: Full Python bindings not yet generated, running in simulation/wrapper mode)")
                 self.model = None 
-                # In a real implementation, we would use ctypes here to call C++ functions
-                # self.lib = ctypes.CDLL(str(lib_path)) 
             else:
                 print("⚠️  Warning: libneurogen.so not found. Training loop will simulate data processing only.")
                 self.model = None
 
-    def tokenize_text(self, text: str) -> Tuple[List[int], List[int]]:
-        """Tokenize text and create input/target pairs for next-token prediction"""
-        # Tokenize with SentencePiece
+    def tokenize_text(self, text: str) -> Tuple[List[int], int]:
+        """Tokenize text and select a context prefix and its literal next token.
+
+        Returns:
+            context_ids: token ids for the input prefix
+            target_id:   the token id immediately following that prefix
+        """
         tokens = self.tokenizer.EncodeAsIds(text)
-        
-        # Truncate if needed
-        if len(tokens) > self.config.max_seq_length:
-            tokens = tokens[:self.config.max_seq_length]
-        
+
         if len(tokens) < 2:
-            return [], []
-        
-        input_ids = tokens[:-1]
-        target_ids = tokens[1:]
-        
-        return input_ids, target_ids
-    
-    def train_on_chunk(self, texts: List[str]) -> Tuple[float, float, str, str]:
-        """Train on a chunk of texts and return (loss, accuracy, sample_input, sample_output)"""
+            return [], -1
+
+        # Truncate for memory safety first
+        if len(tokens) > self.config.max_seq_length:
+            tokens = tokens[: self.config.max_seq_length]
+
+        # We don't want to always predict the *last* token of the truncated
+        # sequence as the target, because the human-visible input snippet we
+        # log for inspection is only a prefix (first 32 tokens). To make
+        # expected_next align with the last token in the visible input, we
+        # train and log on that same prefix position.
+        visible_len = min(32, len(tokens) - 1)  # leave room for at least one next token
+        prefix = tokens[:visible_len]
+        target_pos = visible_len  # immediate next token after the visible prefix
+
+        context_ids = prefix
+        target_id = tokens[target_pos]
+
+        return context_ids, target_id
+
+    def train_on_chunk(self, texts: List[str]) -> Tuple[float, float, str, str, str, int, int]:
+        """Train on a chunk of texts.
+
+        Returns:
+            avg_loss, avg_accuracy,
+            sample_input_text, expected_next_text, predicted_next_text,
+            sample_index_within_chunk, sample_step_at_sample
+        """
         chunk_loss = 0.0
         chunk_accuracy = 0.0
         chunk_tokens = 0
         processed_samples = 0
         skipped_samples = 0
         sample_input = ""
-        sample_output = ""
+        expected_next_text = ""
+        predicted_next_text = ""
+        first_sample_index = -1
+        first_sample_step = -1
 
-        for text in texts:
-            input_ids, target_ids = self.tokenize_text(text)
-            if not input_ids:
+        for idx, text in enumerate(texts):
+            context_ids, target_id = self.tokenize_text(text)
+            if not context_ids or target_id < 0:
                 skipped_samples += 1
                 continue
 
             processed_samples += 1
+            self.sample_step += 1
 
             if self.model:
-                # Call C++ backend
-                loss, accuracy = self.model.train_step(input_ids, target_ids)
-                chunk_loss += loss * len(input_ids)
-                chunk_accuracy += accuracy * len(input_ids)
+                # Train on this exact (context, next-token) pair.
+                # Wrap target_id in a single-element list to satisfy the C++ signature.
+                loss, accuracy, predicted_token_id = self.model.train_step(context_ids, [target_id])
             else:
-                # Simulation mode - add small delay to simulate real training
-                time.sleep(0.001)  # 1ms per sample
-                chunk_loss += 2.5 * len(input_ids) # Dummy loss
-                chunk_accuracy += 0.1 * len(input_ids)  # Dummy accuracy
+                time.sleep(0.001)
+                loss = 2.5
+                accuracy = 0.1
+                predicted_token_id = target_id  # pretend perfect prediction in simulation
 
-            # Capture first sample for visualization
-            if not sample_input and len(input_ids) > 10:
-                sample_input = self.tokenizer.DecodeIds(input_ids[:100])
-                # For output, simulate what the model would generate (in real case, get from model)
-                sample_output = self.tokenizer.DecodeIds(target_ids[:100])
+            # Accumulate loss/accuracy weighted by context length
+            chunk_loss += loss * len(context_ids)
+            chunk_accuracy += accuracy * len(context_ids)
 
-            chunk_tokens += len(input_ids)
-            self.tokens_processed += len(input_ids)
+            # Capture first sample details for visualization
+            if sample_input == "":
+                # Input text is exactly the context used for training (visible prefix)
+                sample_input = self.tokenizer.DecodeIds(context_ids)
+
+                expected_next_text = self.tokenizer.DecodeIds([target_id])
+                if predicted_token_id >= 0:
+                    predicted_next_text = self.tokenizer.DecodeIds([predicted_token_id])
+                else:
+                    predicted_next_text = ""
+
+                first_sample_index = idx
+                first_sample_step = self.sample_step
+
+            chunk_tokens += len(context_ids)
+            self.tokens_processed += len(context_ids)
 
         if self.config.verbose_logging:
             print(f"      Processed {processed_samples} samples ({skipped_samples} skipped), {chunk_tokens} tokens")
 
         avg_loss = chunk_loss / max(chunk_tokens, 1)
         avg_accuracy = chunk_accuracy / max(chunk_tokens, 1)
-        return avg_loss, avg_accuracy, sample_input, sample_output
+        return (
+            avg_loss,
+            avg_accuracy,
+            sample_input,
+            expected_next_text,
+            predicted_next_text,
+            first_sample_index,
+            first_sample_step,
+        )
 
     def train(self):
         """Main training loop"""
@@ -494,7 +527,15 @@ class SlimPajamaTrainer:
                 print(f"🏋️  Training on chunk {self.global_step + 1}...")
 
                 chunk_start = time.time()
-                loss, accuracy, sample_input, sample_output = self.train_on_chunk(chunk_texts)
+                (
+                    loss,
+                    accuracy,
+                    sample_input,
+                    expected_next,
+                    predicted_next,
+                    sample_idx,
+                    sample_step_at_sample,
+                ) = self.train_on_chunk(chunk_texts)
                 chunk_time = time.time() - chunk_start
 
                 self.global_step += 1
@@ -516,13 +557,27 @@ class SlimPajamaTrainer:
                     throughput=tps,
                     tokens_processed=self.tokens_processed,
                     input_text=sample_input,
-                    output_text=sample_output
+                    output_text=predicted_next,
+                    expected_text=expected_next,
+                    predicted_text=predicted_next,
+                    step=sample_step_at_sample if sample_step_at_sample >= 0 else self.global_step,
+                    sample_index=sample_idx if sample_idx is not None else None,
                 )
 
                 # Save text samples JSON every chunk
                 self.viz.save_text_samples()
 
-                # Generate visualization graphs every 5 chunks
+                # Save a model checkpoint every 5 chunks (overwrite latest)
+                if self.model and (self.global_step % 5 == 0):
+                    ckpt_path_str = str(self.latest_checkpoint_path)
+                    print(f"💾 Saving checkpoint to {ckpt_path_str}...")
+                    try:
+                        self.model.save_checkpoint(ckpt_path_str)
+                        print("   ✅ Checkpoint saved.")
+                    except Exception as ckpt_err:
+                        print(f"   ⚠️ Failed to save checkpoint: {ckpt_err}")
+
+                # Generate visualization graphs every N chunks
                 if self.global_step % self.config.viz_interval_chunks == 0:
                     print(f"📊 Generating visualization graphs...")
                     self.viz.generate_charts(self.global_step)
