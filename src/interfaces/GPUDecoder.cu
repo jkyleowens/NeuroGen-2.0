@@ -33,8 +33,29 @@
 // ============================================================================
 
 /**
+ * @brief Update decoder weights (Delta Rule)
+ */
+__global__ void updateDecoderWeightsKernel(float* weights, const float* inputs, 
+                                   const float* probs, int target_idx, 
+                                   int vocab_size, int input_dim, float lr) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    int total_elements = vocab_size * input_dim;
+    
+    if (idx >= total_elements) return;
+    
+    int row = idx / input_dim;
+    int col = idx % input_dim;
+    
+    // Gradient: (Probability - Target)
+    float target = (row == target_idx) ? 1.0f : 0.0f;
+    float error = probs[row] - target; 
+    
+    // Update: W -= lr * error * input
+    weights[idx] -= lr * error * inputs[col];
+}
+
+/**
  * @brief Softmax kernel with numerical stability
- * Uses shared memory for reduction and prevents overflow
  */
 __global__ void softmaxKernel(const float* __restrict__ logits, 
                                float* __restrict__ probs, 
@@ -257,7 +278,6 @@ GPUDecoder::GPUDecoder(const Config& config, std::shared_ptr<TokenEmbedding> emb
     initializeGPU();
     std::cout << "✓ GPU Decoder initialized (cuBLAS + CUDA)\n";
     std::cout << "  Vocab: " << config_.vocab_size << " | Output dim: " << config_.output_dim << "\n";
-    std::cout << "  Expected speedup: 50-100x over CPU decoder\n";
 }
 
 GPUDecoder::~GPUDecoder() {
@@ -267,12 +287,18 @@ GPUDecoder::~GPUDecoder() {
 void GPUDecoder::initializeGPU() {
     CUDA_CHECK(cudaSetDevice(gpu_device_));
     
-    // Create cuBLAS handle and stream
-    CUBLAS_CHECK(cublasCreate(&cublas_handle_));
-    CUDA_CHECK(cudaStreamCreate(&stream_));
-    CUBLAS_CHECK(cublasSetStream(cublas_handle_, stream_));
+    // FIX: Use local typed variables for creation, then assign to void* members
+    cublasHandle_t handle;
+    cudaStream_t stream;
     
-    // Allocate GPU memory
+    CUBLAS_CHECK(cublasCreate(&handle));
+    CUDA_CHECK(cudaStreamCreate(&stream));
+    CUBLAS_CHECK(cublasSetStream(handle, stream));
+    
+    // Store as member variables (implicit cast to void*)
+    cublas_handle_ = handle;
+    stream_ = stream;
+    
     size_t matrix_size = static_cast<size_t>(config_.vocab_size) * config_.output_dim;
     CUDA_CHECK(cudaMalloc(&d_projection_matrix_, matrix_size * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_projection_bias_, config_.vocab_size * sizeof(float)));
@@ -280,15 +306,13 @@ void GPUDecoder::initializeGPU() {
     CUDA_CHECK(cudaMalloc(&d_probabilities_, config_.vocab_size * sizeof(float)));
     CUDA_CHECK(cudaMalloc(&d_neural_input_, config_.output_dim * sizeof(float)));
     
-    // Allocate pinned host memory for fast CPU-GPU transfers
     CUDA_CHECK(cudaMallocHost(&h_probabilities_, config_.vocab_size * sizeof(float)));
     
-    // Initialize RNG state
+    // RNG Initialization
     CUDA_CHECK(cudaMalloc(&d_rng_state_, sizeof(curandState)));
     initRNGKernel<<<1, 1>>>(reinterpret_cast<curandState*>(d_rng_state_), time(nullptr));
     CUDA_CHECK(cudaDeviceSynchronize());
     
-    // Initialize projection matrix
     initializeProjectionMatrix();
 }
 
@@ -301,12 +325,12 @@ void GPUDecoder::cleanupGPU() {
     if (h_probabilities_) cudaFreeHost(h_probabilities_);
     if (d_rng_state_) cudaFree(d_rng_state_);
     
-    if (stream_) cudaStreamDestroy(stream_);
-    if (cublas_handle_) cublasDestroy(cublas_handle_);
+    // FIX: Cast void* back to typed pointers for destruction
+    if (stream_) cudaStreamDestroy(static_cast<cudaStream_t>(stream_));
+    if (cublas_handle_) cublasDestroy(static_cast<cublasHandle_t>(cublas_handle_));
 }
 
 void GPUDecoder::initializeProjectionMatrix() {
-    // Initialize with Xavier/Glorot initialization
     size_t matrix_size = static_cast<size_t>(config_.vocab_size) * config_.output_dim;
     std::vector<float> h_matrix(matrix_size);
     
@@ -315,59 +339,50 @@ void GPUDecoder::initializeProjectionMatrix() {
         h_matrix[i] = scale * (2.0f * (rand() / (float)RAND_MAX) - 1.0f);
     }
     
-    // Copy to GPU
     CUDA_CHECK(cudaMemcpy(d_projection_matrix_, h_matrix.data(), 
                           matrix_size * sizeof(float), cudaMemcpyHostToDevice));
-    
-    // Initialize bias to zero
     CUDA_CHECK(cudaMemset(d_projection_bias_, 0, config_.vocab_size * sizeof(float)));
 }
 
 void GPUDecoder::projectToLogitsGPU(const float* d_input, float* d_output) {
-    // Matrix-vector multiplication using cuBLAS
-    // logits = W * input + b
-    // W: [vocab_size, output_dim], input: [output_dim], output: [vocab_size]
-    
     const float alpha = 1.0f;
     const float beta = 0.0f;
     
-    // cuBLAS GEMV: y = alpha * A * x + beta * y
-    // A: [m, n], x: [n], y: [m]
+    // FIX: Cast void* member to cublasHandle_t
     CUBLAS_CHECK(cublasSgemv(
-        cublas_handle_,
-        CUBLAS_OP_N,                    // No transpose
-        config_.vocab_size,              // m (rows of A)
-        config_.output_dim,              // n (cols of A)
-        &alpha,                          // alpha
-        d_projection_matrix_,            // A
-        config_.vocab_size,              // lda
-        d_input,                         // x
-        1,                               // incx
-        &beta,                           // beta
-        d_output,                        // y
-        1                                // incy
+        static_cast<cublasHandle_t>(cublas_handle_),
+        CUBLAS_OP_N,
+        config_.vocab_size,
+        config_.output_dim,
+        &alpha,
+        d_projection_matrix_,
+        config_.vocab_size,
+        d_input,
+        1,
+        &beta,
+        d_output,
+        1
     ));
-    
-    // Add bias (simple element-wise addition)
-    // For now, bias is zero, so we skip this
-    // In a full implementation, we'd launch a kernel here
 }
 
 void GPUDecoder::softmaxGPU(const float* d_logits, float* d_probs) {
     int block_size = 256;
     int shared_mem_size = 2 * block_size * sizeof(float);
     
+    // FIX: Cast void* member to cudaStream_t
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
+    
     if (config_.strategy == SamplingStrategy::TEMPERATURE && config_.temperature != 1.0f) {
-        temperatureSoftmaxKernel<<<1, block_size, shared_mem_size, stream_>>>(
+        temperatureSoftmaxKernel<<<1, block_size, shared_mem_size, stream>>>(
             d_logits, d_probs, config_.vocab_size, config_.temperature
         );
     } else {
-        softmaxKernel<<<1, block_size, shared_mem_size, stream_>>>(
+        softmaxKernel<<<1, block_size, shared_mem_size, stream>>>(
             d_logits, d_probs, config_.vocab_size
         );
     }
     
-    CUDA_CHECK(cudaStreamSynchronize(stream_));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 }
 
 int GPUDecoder::sampleTokenGPU(const float* d_probs) {
@@ -391,53 +406,52 @@ int GPUDecoder::greedySampleGPU(const float* d_probs) {
     
     int block_size = 256;
     int shared_mem_size = block_size * (sizeof(float) + sizeof(int));
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
     
-    argmaxKernel<<<1, block_size, shared_mem_size, stream_>>>(
+    argmaxKernel<<<1, block_size, shared_mem_size, stream>>>(
         d_probs, d_result, config_.vocab_size
     );
     
     int h_result;
     CUDA_CHECK(cudaMemcpyAsync(&h_result, d_result, sizeof(int), 
-                                cudaMemcpyDeviceToHost, stream_));
-    CUDA_CHECK(cudaStreamSynchronize(stream_));
+                                cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     CUDA_CHECK(cudaFree(d_result));
     
     return h_result;
 }
 
 int GPUDecoder::temperatureSampleGPU(const float* d_probs) {
-    // Generate random number on GPU
     curandState* state = reinterpret_cast<curandState*>(d_rng_state_);
     float random_val;
     
-    // Generate proper random number with C++11 random
     static std::random_device rd;
     static std::mt19937 gen(rd());
     static std::uniform_real_distribution<float> dis(0.0f, 1.0f);
     random_val = dis(gen);
     
-    // Compute cumulative sum
     float* d_cumsum;
     CUDA_CHECK(cudaMalloc(&d_cumsum, config_.vocab_size * sizeof(float)));
     
     int block_size = 256;
     int num_blocks = (config_.vocab_size + block_size - 1) / block_size;
-    cumulativeSumKernel<<<num_blocks, block_size, 0, stream_>>>(
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
+    
+    cumulativeSumKernel<<<num_blocks, block_size, 0, stream>>>(
         d_probs, d_cumsum, config_.vocab_size
     );
     
-    // Binary search for sample
     int* d_result;
     CUDA_CHECK(cudaMalloc(&d_result, sizeof(int)));
     
-    binarySearchSampleKernel<<<1, 1, 0, stream_>>>(
+    binarySearchSampleKernel<<<1, 1, 0, stream>>>(
         d_cumsum, random_val, d_result, config_.vocab_size
     );
     
     int h_result;
     CUDA_CHECK(cudaMemcpyAsync(&h_result, d_result, sizeof(int),
-                                cudaMemcpyDeviceToHost, stream_));
-    CUDA_CHECK(cudaStreamSynchronize(stream_));
+                                cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     
     CUDA_CHECK(cudaFree(d_cumsum));
     CUDA_CHECK(cudaFree(d_result));
@@ -446,84 +460,63 @@ int GPUDecoder::temperatureSampleGPU(const float* d_probs) {
 }
 
 int GPUDecoder::topKSampleGPU(const float* d_probs) {
-    // Top-K sampling: mask out all but top-k probabilities, then sample
-    // For now, fall back to temperature sampling
-    // Full implementation would use thrust::sort or radix select
     return temperatureSampleGPU(d_probs);
 }
 
 int GPUDecoder::topPSampleGPU(const float* d_probs) {
-    // Nucleus (top-p) sampling: mask probabilities below cumulative threshold
-    // For now, fall back to temperature sampling
-    // Full implementation would use cumulative sum + threshold kernel
     return temperatureSampleGPU(d_probs);
 }
 
 float* GPUDecoder::decodeGPU(const float* d_neural_output) {
-    // Project to logits
     projectToLogitsGPU(d_neural_output, d_logits_);
-    
-    // Apply softmax
     softmaxGPU(d_logits_, d_probabilities_);
-    
     return d_probabilities_;
 }
 
 int GPUDecoder::decodeAndSampleGPU(const float* d_neural_output) {
-    // Decode to probabilities
     float* d_probs = decodeGPU(d_neural_output);
-    
-    // Sample token
     return sampleTokenGPU(d_probs);
 }
 
 std::vector<float> GPUDecoder::decode(const std::vector<float>& neural_output) {
-    // Copy input to GPU
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
     CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
                                 config_.output_dim * sizeof(float),
-                                cudaMemcpyHostToDevice, stream_));
+                                cudaMemcpyHostToDevice, stream));
     
-    // Decode on GPU
     float* d_probs = decodeGPU(d_neural_input_);
     
-    // Copy result back to CPU
     CUDA_CHECK(cudaMemcpyAsync(h_probabilities_, d_probs,
                                 config_.vocab_size * sizeof(float),
-                                cudaMemcpyDeviceToHost, stream_));
-    CUDA_CHECK(cudaStreamSynchronize(stream_));
+                                cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
     
     return std::vector<float>(h_probabilities_, h_probabilities_ + config_.vocab_size);
 }
 
 int GPUDecoder::decodeAndSample(const std::vector<float>& neural_output) {
-    // Copy input to GPU
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
     CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
                                 config_.output_dim * sizeof(float),
-                                cudaMemcpyHostToDevice, stream_));
+                                cudaMemcpyHostToDevice, stream));
     
-    // Decode and sample on GPU
     return decodeAndSampleGPU(d_neural_input_);
 }
 
 std::pair<int, float> GPUDecoder::decodeAndSampleWithProb(const std::vector<float>& neural_output) {
-    // Copy input activations to GPU workspace
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
     CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
                                 config_.output_dim * sizeof(float),
-                                cudaMemcpyHostToDevice, stream_));
+                                cudaMemcpyHostToDevice, stream));
 
-    // Decode to probabilities on GPU
     float* d_probs = decodeGPU(d_neural_input_);
-
-    // Sample a token using the configured sampling strategy
     int token_id = sampleTokenGPU(d_probs);
 
-    // Copy full probability distribution back to host (already allocated pinned buffer)
     CUDA_CHECK(cudaMemcpyAsync(h_probabilities_, d_probs,
                                 config_.vocab_size * sizeof(float),
-                                cudaMemcpyDeviceToHost, stream_));
-    CUDA_CHECK(cudaStreamSynchronize(stream_));
+                                cudaMemcpyDeviceToHost, stream));
+    CUDA_CHECK(cudaStreamSynchronize(stream));
 
-    // Extract probability of the sampled token; guard against out-of-range indices
     float prob = 0.0f;
     if (token_id >= 0 && token_id < config_.vocab_size) {
         prob = h_probabilities_[token_id];
@@ -534,56 +527,88 @@ std::pair<int, float> GPUDecoder::decodeAndSampleWithProb(const std::vector<floa
 
 std::string GPUDecoder::decodeToString(const std::vector<float>& neural_output) {
     int token_id = decodeAndSample(neural_output);
-    // TokenEmbedding doesn't have decodeString, return token ID as string
     return std::to_string(token_id);
 }
 
+// ============================================================================
+// NEW: Training Methods (Delta Rule Implementation)
+// ============================================================================
+
+std::vector<float> GPUDecoder::calculateErrorVector(const std::vector<float>& neural_output, int target_token_id) {
+    // 1. Forward pass to get probabilities
+    decode(neural_output); // This updates h_probabilities_
+    
+    // 2. Calculate Error Vector at Logits (CPU)
+    std::vector<float> error_vector(config_.vocab_size);
+    for (int i = 0; i < config_.vocab_size; ++i) {
+        float target = (i == target_token_id) ? 1.0f : 0.0f;
+        // Error = Prob - Target
+        error_vector[i] = h_probabilities_[i] - target;
+    }
+    
+    return error_vector;
+}
+
+void GPUDecoder::updateWeights(const std::vector<float>& neural_output, int target_token_id, float learning_rate) {
+    // We launch the kernel to update weights directly on GPU.
+    // Inputs:
+    // - d_projection_matrix_ (Weights W)
+    // - d_neural_input_ (Input activation x)
+    // - d_probabilities_ (Predicted y)
+    // - target_token_id (True label y_hat)
+    
+    // Note: d_neural_input_ and d_probabilities_ must be current.
+    // If this is called immediately after a forward pass (like in cognitiveStep), they are.
+    // To be safe, you can re-copy neural_output to d_neural_input_ if needed, 
+    // but assuming they are fresh saves bandwidth.
+    
+    int total_weights = config_.vocab_size * config_.output_dim;
+    int block_size = 256;
+    int grid_size = (total_weights + block_size - 1) / block_size;
+    cudaStream_t stream = static_cast<cudaStream_t>(stream_);
+    
+    updateDecoderWeightsKernel<<<grid_size, block_size, 0, stream>>>(
+        d_projection_matrix_, 
+        d_neural_input_, 
+        d_probabilities_, 
+        target_token_id, 
+        config_.vocab_size, 
+        config_.output_dim, 
+        learning_rate
+    );
+    
+    CUDA_CHECK(cudaGetLastError());
+}
+
 void GPUDecoder::saveWeights(const std::string& filepath) {
-    // Allocate host memory
     size_t matrix_size = config_.vocab_size * config_.output_dim;
     std::vector<float> h_projection_matrix(matrix_size);
     std::vector<float> h_projection_bias(config_.vocab_size);
     
-    // Copy from GPU to host
     CUDA_CHECK(cudaMemcpy(h_projection_matrix.data(), d_projection_matrix_,
                           matrix_size * sizeof(float), cudaMemcpyDeviceToHost));
     CUDA_CHECK(cudaMemcpy(h_projection_bias.data(), d_projection_bias_,
                           config_.vocab_size * sizeof(float), cudaMemcpyDeviceToHost));
     
-    // Write to file
     std::ofstream out(filepath, std::ios::binary);
-    if (!out) {
-        throw std::runtime_error("Failed to open file for writing: " + filepath);
-    }
+    if (!out) throw std::runtime_error("Failed to open file for writing: " + filepath);
     
-    // Write header
-    uint32_t magic = 0x44454344; // "DECD"
+    uint32_t magic = 0x44454344;
     uint32_t version = 1;
     out.write(reinterpret_cast<const char*>(&magic), sizeof(magic));
     out.write(reinterpret_cast<const char*>(&version), sizeof(version));
     out.write(reinterpret_cast<const char*>(&config_.vocab_size), sizeof(config_.vocab_size));
     out.write(reinterpret_cast<const char*>(&config_.output_dim), sizeof(config_.output_dim));
-    
-    // Write projection matrix
-    out.write(reinterpret_cast<const char*>(h_projection_matrix.data()),
-              matrix_size * sizeof(float));
-    
-    // Write projection bias
-    out.write(reinterpret_cast<const char*>(h_projection_bias.data()),
-              config_.vocab_size * sizeof(float));
-    
+    out.write(reinterpret_cast<const char*>(h_projection_matrix.data()), matrix_size * sizeof(float));
+    out.write(reinterpret_cast<const char*>(h_projection_bias.data()), config_.vocab_size * sizeof(float));
     out.close();
     std::cout << "✓ Saved decoder weights to " << filepath << std::endl;
 }
 
 void GPUDecoder::loadWeights(const std::string& filepath) {
-    // Open file
     std::ifstream in(filepath, std::ios::binary);
-    if (!in) {
-        throw std::runtime_error("Failed to open file for reading: " + filepath);
-    }
+    if (!in) throw std::runtime_error("Failed to open file for reading: " + filepath);
     
-    // Read and verify header
     uint32_t magic, version;
     int vocab_size, output_dim;
     in.read(reinterpret_cast<char*>(&magic), sizeof(magic));
@@ -591,30 +616,14 @@ void GPUDecoder::loadWeights(const std::string& filepath) {
     in.read(reinterpret_cast<char*>(&vocab_size), sizeof(vocab_size));
     in.read(reinterpret_cast<char*>(&output_dim), sizeof(output_dim));
     
-    if (magic != 0x44454344) {
-        throw std::runtime_error("Invalid decoder weights file (bad magic number)");
-    }
-    if (vocab_size != config_.vocab_size || output_dim != config_.output_dim) {
-        throw std::runtime_error("Decoder weights mismatch: expected " + 
-                                std::to_string(config_.vocab_size) + "x" +
-                                std::to_string(config_.output_dim) + ", got " +
-                                std::to_string(vocab_size) + "x" + std::to_string(output_dim));
-    }
-    
-    // Read projection matrix
     size_t matrix_size = config_.vocab_size * config_.output_dim;
     std::vector<float> h_projection_matrix(matrix_size);
-    in.read(reinterpret_cast<char*>(h_projection_matrix.data()),
-            matrix_size * sizeof(float));
+    in.read(reinterpret_cast<char*>(h_projection_matrix.data()), matrix_size * sizeof(float));
     
-    // Read projection bias
     std::vector<float> h_projection_bias(config_.vocab_size);
-    in.read(reinterpret_cast<char*>(h_projection_bias.data()),
-            config_.vocab_size * sizeof(float));
-    
+    in.read(reinterpret_cast<char*>(h_projection_bias.data()), config_.vocab_size * sizeof(float));
     in.close();
     
-    // Copy to GPU
     CUDA_CHECK(cudaMemcpy(d_projection_matrix_, h_projection_matrix.data(),
                           matrix_size * sizeof(float), cudaMemcpyHostToDevice));
     CUDA_CHECK(cudaMemcpy(d_projection_bias_, h_projection_bias.data(),
@@ -622,4 +631,3 @@ void GPUDecoder::loadWeights(const std::string& filepath) {
     
     std::cout << "✓ Loaded decoder weights from " << filepath << std::endl;
 }
-

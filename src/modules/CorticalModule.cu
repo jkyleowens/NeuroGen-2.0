@@ -15,14 +15,12 @@ CorticalModule::CorticalModule(const Config& config, int gpu_device_id)
       signal_mean_(0.0f),
       signal_variance_(0.0f) {
     
-    // Instantiate the new Neural Engine (Phase 1 Refactor)
     neural_engine_ = std::make_unique<neurogen::NeuralEngine>(gpu_device_id);
     
     NetworkConfig net_config;
     net_config.num_neurons = config.num_neurons;
     net_config.percent_inhibitory = 0.2f;
     
-    // Calculate synapse count based on fanout
     size_t fanout = static_cast<size_t>(std::max(1, config.fanout_per_neuron));
     net_config.num_synapses = static_cast<size_t>(config.num_neurons) * fanout;
     
@@ -40,8 +38,12 @@ CorticalModule::CorticalModule(const Config& config, int gpu_device_id)
         std::cerr << "Failed to init module " << config_.module_name << std::endl;
     }
     
-    // Initialize working memory buffer
-    working_memory_.resize(config.num_neurons / 10, 0.0f);  // 10% of neurons for working memory
+    // Pre-allocate buffers to avoid runtime reallocation
+    working_memory_.resize(config.num_neurons / 10, 0.0f);
+    input_buffer_.reserve(net_config.num_inputs);
+    modulation_buffer_.resize(net_config.num_inputs);
+    cached_output_state_.resize(net_config.num_outputs);
+    previous_input_.resize(net_config.num_inputs, 0.0f); // Initialize previous input
     
     std::cout << "✓ Initialized module (NeuroGen 2.0): " << config_.module_name 
               << " with " << config.num_neurons << " neurons" << std::endl;
@@ -85,10 +87,9 @@ void CorticalModule::update(float dt_ms, float reward_signal) {
     current_serotonin_ *= 0.98f;  // 2% decay per update
 }
 
-std::vector<float> CorticalModule::getOutputState() const {
-    // Retrieve firing rates or voltages from the output layer
-    // The new engine returns float vector of spikes/activities
-    return neural_engine_->getNeuronOutputs();
+const std::vector<float>& CorticalModule::getOutputState() const {
+    cached_output_state_ = neural_engine_->getNeuronOutputs();
+    return cached_output_state_;
 }
 
 void CorticalModule::setPlasticity(bool enabled) {
@@ -129,16 +130,23 @@ float CorticalModule::calculateSignalToNoise(const std::vector<float>& signal) c
 }
 
 std::vector<float> CorticalModule::gateSignal(const std::vector<float>& signal, float threshold) {
-    float snr = calculateSignalToNoise(signal);
+    std::vector<float> gated_signal(signal.size());
     
-    std::vector<float> gated_signal = signal;
-    
-    // If SNR is below threshold, attenuate the signal
-    if (snr < threshold) {
-        float attenuation = snr / threshold;
-        for (float& val : gated_signal) {
-            val *= attenuation;
+    // Ensure previous_input_ is correctly sized (safety check)
+    if (previous_input_.size() != signal.size()) {
+        previous_input_.resize(signal.size(), 0.0f);
+    }
+
+    for (size_t i = 0; i < signal.size(); ++i) {
+        float delta = signal[i] - previous_input_[i];
+        // If the signal hasn't changed significantly, don't pass it (Novelty Gating)
+        if (std::abs(delta) > threshold) {
+            gated_signal[i] = delta; 
+        } else {
+            gated_signal[i] = 0.0f;
         }
+        // Update previous input with decay
+        previous_input_[i] = signal[i]; 
     }
     
     return gated_signal;
@@ -160,11 +168,6 @@ void CorticalModule::applyTopDownBias(float bias_strength) {
     current_inhibition_ = config_.modulation.inhibition_level * (1.0f - bias_strength);
 }
 
-void CorticalModule::mapInputToNeurons(const std::vector<float>& input) {
-    // This would map inputs to specific neurons
-    // Implementation depends on the specific module type
-    (void)input; // Suppress unused parameter warning
-}
 
 void CorticalModule::updateSignalStatistics(const std::vector<float>& signal) {
     if (signal.empty()) return;
@@ -221,4 +224,48 @@ bool CorticalModule::setSynapseStates(const std::vector<GPUSynapse>& synapses) {
 void CorticalModule::restoreNeuromodulatorLevels(float dopamine, float serotonin) {
     current_dopamine_ = std::max(0.0f, std::min(2.0f, dopamine));
     current_serotonin_ = std::max(0.0f, std::min(2.0f, serotonin));
+}
+
+std::vector<float> CorticalModule::calculatePredictionError(const std::vector<float>& prediction) {
+    // Ideally compare against last received input
+    if (input_buffer_.empty() || prediction.empty()) {
+        return input_buffer_; // Everything is error/novel if we have no context
+    }
+    
+    size_t size = std::min(input_buffer_.size(), prediction.size());
+    std::vector<float> error(size);
+    
+    for (size_t i = 0; i < size; ++i) {
+        error[i] = std::abs(input_buffer_[i] - prediction[i]);
+    }
+    
+    return error;
+}
+
+void CorticalModule::modulateWithError(const std::vector<float>& error_signal) {
+    if (error_signal.empty()) return;
+    
+    // Calculate mean absolute error
+    float mae = 0.0f;
+    for (float e : error_signal) mae += std::abs(e);
+    mae /= error_signal.size();
+    
+    // Boost dopamine locally. High Error = Need to Learn = High Dopamine.
+    // Note: In biology, low dopamine often signals error (dip), but for STDP 
+    // we often use dopamine to gate the magnitude of change.
+    float error_sensitivity = 2.0f;
+    current_dopamine_ += mae * error_sensitivity;
+    current_dopamine_ = std::min(2.0f, current_dopamine_);
+}
+
+float CorticalModule::getGatingSignal() const {
+    const auto& output = getOutputState();
+    if (output.empty()) return 0.0f;
+    
+    float sum = 0.0f;
+    for (float val : output) sum += val;
+    float avg = sum / output.size();
+    
+    // Sigmoid-like squashing or simple clamp
+    return std::min(1.0f, avg * 10.0f); // *10 assuming sparse activity
 }

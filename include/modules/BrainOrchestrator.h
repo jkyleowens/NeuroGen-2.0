@@ -1,199 +1,98 @@
 #pragma once
+
 #include <vector>
 #include <string>
 #include <memory>
-#include <map>
-#include <chrono>
+#include <unordered_map>
+#include <iostream>
+
 #include "modules/CorticalModule.h"
 #include "modules/InterModuleConnection.h"
+#include "modules/FeedbackMatrix.h"
+#include "interfaces/GPUDecoder.h"
 #include "persistence/NetworkSnapshot.h"
 
-/**
- * @brief Central coordinator for the modular brain architecture
- * 
- * The BrainOrchestrator manages all cortical modules and their interconnections,
- * orchestrates the cognitive cycle, distributes neuromodulatory signals, and
- * coordinates the overall "thinking" process of the neural system.
- */
 class BrainOrchestrator {
 public:
-    enum class CognitivePhase {
-        SENSATION,      // 0-50ms: Thalamic gating and input processing
-        PERCEPTION,     // 50-150ms: Semantic processing in Wernicke's
-        INTEGRATION,    // 150-300ms: PFC integration and memory retrieval
-        SELECTION,      // 300-400ms: Basal ganglia action selection
-        ACTION          // 400ms+: Output generation via Broca's
-    };
-
     enum class ProcessingMode {
-        SEQUENTIAL,     // Traditional: Full 5-phase cycle per token
-        PIPELINED       // Streaming: Token input → working memory → parallel processing
+        SEQUENTIAL,
+        PIPELINED
     };
 
     struct Config {
-        int gpu_device_id;
-        float time_step_ms;              // Simulation time step (default: 1.0ms)
-        bool enable_parallel_execution;  // Use CUDA streams for parallel modules
-        bool enable_consolidation;       // Enable hippocampal replay
-        float consolidation_interval_ms; // How often to run consolidation
-        ProcessingMode processing_mode;  // Sequential vs Pipelined processing
-        int max_pipeline_depth;          // Max tokens to accumulate before forcing output
+        int gpu_device_id = 0;
+        float time_step_ms = 1.0f;
+        bool enable_parallel_execution = false;
+        bool enable_consolidation = true;
+        float consolidation_interval_ms = 10000.0f;
+        ProcessingMode processing_mode = ProcessingMode::SEQUENTIAL;
+        int max_pipeline_depth = 5;
     };
 
-    BrainOrchestrator(const Config& config);
-    ~BrainOrchestrator();
-
-    /**
-     * @brief Initialize all brain modules with their specific configurations
-     */
-    void initializeModules();
-
-    /**
-     * @brief Create the connectome (inter-module connections)
-     */
-    void createConnectome();
-
-    /**
-     * @brief Execute one complete cognitive cycle
-     * @param input_embedding Token embedding to process
-     * @return Output token probabilities (if in ACTION phase)
-     */
-    std::vector<float> cognitiveStep(const std::vector<float>& input_embedding);
-
-    /**
-     * @brief Route signals between all modules according to connectome
-     */
-    void routeSignals();
-
-    /**
-     * @brief Distribute global reward/dopamine signal to all modules
-     * @param reward Reward prediction error (dopamine signal)
-     */
-    void distributeReward(float reward);
-
-    /**
-     * @brief Get the global workspace (shared activation patterns)
-     * @return Combined activity from key modules
-     */
-    std::vector<float> getGlobalWorkspace();
-
-    /**
-     * @brief Update all inter-module connection plasticity
-     * @param reward Global reward signal
-     */
-    void updateConnectionPlasticity(float reward);
-
-    /**
-     * @brief Trigger hippocampal consolidation (replay mechanism)
-     */
-    void consolidateMemory();
-
-    /**
-     * @brief Get current cognitive phase
-     */
-    CognitivePhase getCurrentPhase() const { return current_phase_; }
-
-    /**
-     * @brief Get module by name
-     */
-    CorticalModule* getModule(const std::string& name);
-
-    /**
-     * @brief Get system statistics
-     */
+    // Nested struct for detailed stats
     struct ModuleStats {
         float activity_level;
         float dopamine_level;
         float serotonin_level;
     };
 
+    // Deprecated phase enum (kept for compatibility)
+    enum class CognitivePhase { SENSATION, PERCEPTION, INTEGRATION, SELECTION, ACTION };
+
     struct Stats {
         float total_time_ms;
         int cognitive_cycles;
         int tokens_processed;
         float average_reward;
-        CognitivePhase current_phase;
-        std::map<std::string, ModuleStats> module_stats;
+        CognitivePhase current_phase; 
+        std::unordered_map<std::string, ModuleStats> module_stats; // Detailed per-module stats
     };
-    Stats getStats() const;
 
-    /**
-     * @brief Capture the full neural network snapshot for persistence
-     */
-    persistence::BrainSnapshot captureSnapshot() const;
+    explicit BrainOrchestrator(const Config& config);
+    ~BrainOrchestrator();
 
-    /**
-     * @brief Serialize the current state to a checkpoint file
-     * @param file_path Destination file path
-     * @return True on success
-     */
-    bool saveCheckpoint(const std::string& file_path) const;
+    void initializeModules();
+    void createConnectome();
+    
+    // Core cognitive step
+    std::vector<float> cognitiveStep(
+        const std::vector<float>& input_embedding, 
+        int target_token_id = -1, 
+        GPUDecoder* decoder = nullptr
+    );
 
-    /**
-     * @brief Restore orchestrator state from a checkpoint file
-     * @param file_path Checkpoint file path
-     * @return True on success
-     */
-    bool loadCheckpoint(const std::string& file_path);
+    // Pipelined cognitive step
+    std::vector<float> pipelinedCognitiveStep(
+        const std::vector<float>& input_embedding,
+        int target_token_id = -1,
+        GPUDecoder* decoder = nullptr
+    );
 
-    /**
-     * @brief Reset the system state
-     */
+    // Helper to access global workspace (concatenated state)
+    std::vector<float> getGlobalWorkspace();
+
     void reset();
-
-    /**
-     * @brief Get output from Broca's area (language production)
-     * @return Neural activity pattern from Broca's module
-     */
     std::vector<float> getBrocaOutput();
-
-    /**
-     * @brief Modulate global neuromodulator levels
-     * @param dopamine Dopamine level (reward/learning)
-     * @param serotonin Serotonin level (mood/inhibition)
-     * @param norepinephrine Norepinephrine level (arousal/attention)
-     */
+    
+    // Neuromodulation
     void modulateGlobalState(float dopamine, float serotonin, float norepinephrine);
-
-    /**
-     * @brief Set processing mode
-     * @param mode Sequential or pipelined processing
-     */
+    
+    // FIXED: Moved distributeReward to public so TrainingLoop can call it
+    void distributeReward(float reward);
+    
+    bool saveCheckpoint(const std::string& file_path) const;
+    bool loadCheckpoint(const std::string& file_path);
+    
+    Stats getStats() const;
     void setProcessingMode(ProcessingMode mode);
 
-    /**
-     * @brief Get current processing mode
-     */
-    ProcessingMode getProcessingMode() const { return processing_mode_; }
+    persistence::BrainSnapshot captureSnapshot() const;
+    persistence::BrainSnapshot captureMetadataSnapshot() const; // Lightweight capture
 
 private:
-    /**
-     * @brief Pipeline state for streaming recurrent processing
-     */
-    struct PipelineState {
-        // Working memory buffers (temporal context window)
-        std::vector<float> wm_current;      // t=0 (just encoded)
-        std::vector<float> wm_previous;     // t=-1 (being processed)
-        std::vector<float> wm_context;      // t=-2 to t=-N (accumulated context)
-        
-        // Recurrent hidden states
-        std::vector<float> pfc_hidden_state;
-        std::vector<float> hippocampus_hidden_state;
-        
-        // Pipeline tracking
-        int tokens_in_pipeline;
-        bool output_ready;
-        std::vector<float> pending_output;
-        
-        // Performance metrics
-        float accumulated_processing_time;
-        
-        PipelineState() : tokens_in_pipeline(0), output_ready(false), 
-                         accumulated_processing_time(0.0f) {}
-    };
     Config config_;
     
-    // The six core modules
+    // Module ownership
     std::unique_ptr<CorticalModule> thalamus_;
     std::unique_ptr<CorticalModule> wernicke_;
     std::unique_ptr<CorticalModule> broca_;
@@ -201,51 +100,58 @@ private:
     std::unique_ptr<CorticalModule> pfc_;
     std::unique_ptr<CorticalModule> basal_ganglia_;
     
-    // Inter-module connections (the connectome)
+    std::unordered_map<std::string, CorticalModule*> module_map_;
     std::vector<std::unique_ptr<InterModuleConnection>> connections_;
     
-    // Map of module names to pointers for easy access
-    std::map<std::string, CorticalModule*> module_map_;
+    // Feedback Matrices
+    std::unique_ptr<FeedbackMatrix> feedback_output_to_broca_;
+    std::unique_ptr<FeedbackMatrix> feedback_broca_to_wernicke_;
+
+    // State tracking
+    std::vector<float> pending_input_;
+    bool should_generate_output_;
     
-    // Cognitive state
+    // Phases
     CognitivePhase current_phase_;
     float phase_timer_;
-    float total_time_;
     
-    // Statistics
+    float total_time_;
+    float time_since_consolidation_;
     int cognitive_cycles_;
     int tokens_processed_;
     float average_reward_;
     
-    // Internal state for decision making
-    bool should_generate_output_;
-    std::vector<float> pending_input_;
-    
-    // Consolidation state
-    float time_since_consolidation_;
-    
-    // Processing mode and pipeline state
+    // Processing Mode
     ProcessingMode processing_mode_;
-    PipelineState pipeline_state_;
     
-    // Helper functions for cognitive phases (sequential mode)
+    // Pipeline state
+    struct PipelineState {
+        std::vector<float> wm_current;
+        std::vector<float> wm_previous;
+        std::vector<float> wm_context;
+        std::vector<float> pfc_hidden_state;
+        std::vector<float> hippocampus_hidden_state;
+        int tokens_in_pipeline = 0;
+        float accumulated_processing_time = 0.0f;
+    } pipeline_state_;
+
+    // Internal helpers
+    void fastInputEncoding(const std::vector<float>& input, const std::vector<float>& prediction);
+    void parallelCorticalProcessing();
+    std::vector<float> conditionalOutputGeneration();
+    void updateRecurrentState();
+    void consolidateMemory();
+    void routeSignals();
+    
+    void updateConnectionPlasticity(float reward);
+    
+    CorticalModule* getModule(const std::string& name);
+    
+    void advancePhase();
+    float getPhaseDuration(CognitivePhase phase) const;
     void executeSensationPhase(const std::vector<float>& input);
     void executePerceptionPhase();
     void executeIntegrationPhase();
     void executeSelectionPhase();
     std::vector<float> executeActionPhase();
-    
-    // Helper to advance to next phase
-    void advancePhase();
-    
-    // Calculate phase duration based on biological timing
-    float getPhaseDuration(CognitivePhase phase) const;
-    
-    // Pipelined processing methods
-    std::vector<float> pipelinedCognitiveStep(const std::vector<float>& input_embedding);
-    void fastInputEncoding(const std::vector<float>& input);
-    void parallelCorticalProcessing();
-    std::vector<float> conditionalOutputGeneration();
-    void updateRecurrentState();
 };
-
