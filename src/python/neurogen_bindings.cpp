@@ -81,20 +81,28 @@ public:
         gpu_decoder_config.temperature = 1.0f;
         gpu_decoder_config.top_k = 50;
         gpu_decoder_config.top_p = 0.9f;
-        gpu_decoder_config.strategy = GPUDecoder::SamplingStrategy::TOP_K; // Use TOP_K sampling to satisfy the updated training algorithm requirements
+        gpu_decoder_config.strategy = GPUDecoder::SamplingStrategy::GREEDY; // Use GREEDY for training (deterministic, measurable accuracy)
         gpu_decoder_config.gpu_device = gpu_device_;
         
         gpu_decoder_ = std::make_shared<GPUDecoder>(gpu_decoder_config, embedding_);
+        
+        // Create a second decoder for inference with top-k sampling
+        GPUDecoder::Config inference_decoder_config = gpu_decoder_config;
+        inference_decoder_config.strategy = GPUDecoder::SamplingStrategy::TOP_K;
+        inference_decoder_ = std::make_shared<GPUDecoder>(inference_decoder_config, embedding_);
         
         std::cout << "✅ NeuroGen model initialized with:" << std::endl;
         std::cout << "   Vocab Size: " << vocab_size_ << std::endl;
         std::cout << "   Embedding Dim: " << embedding_dim_ << std::endl;
         std::cout << "   GPU Device: " << gpu_device_ << std::endl;
         std::cout << "   🎯 Memory Optimized: GTX 1650 (4GB) configuration" << std::endl;
+        std::cout << "   📊 Training Decoder: GREEDY (deterministic)" << std::endl;
+        std::cout << "   🎲 Inference Decoder: TOP_K=50 (creative)" << std::endl;
     }
     
     /**
      * Train on a single step (predict exactly ONE next token)
+     * Uses GREEDY decoding for deterministic, measurable accuracy
      * @param input_ids: List of input token IDs (context)
      * @param target_ids: List of target token IDs (same length, but we only use last one)
      * @return: Tuple of (loss, accuracy, predicted_token_id)
@@ -119,7 +127,8 @@ public:
             brain_->cognitiveStep(embedded);
         }
 
-        // 2) Get final Broca output and decode/sample with probability
+        // 2) Get final Broca output and decode with GREEDY strategy
+        //    (gpu_decoder_ uses GREEDY for deterministic training)
         std::vector<float> brain_output = brain_->getBrocaOutput();
         auto token_and_prob = gpu_decoder_->decodeAndSampleWithProb(brain_output);
         int predicted_token = token_and_prob.first;
@@ -139,7 +148,7 @@ public:
     }
     
     /**
-     * Generate text from a prompt
+     * Generate text from a prompt (uses TOP_K sampling for creative output)
      * @param prompt_ids: List of prompt token IDs
      * @param max_length: Maximum generation length
      * @return: List of generated token IDs
@@ -153,10 +162,10 @@ public:
             brain_->cognitiveStep(embedded);
         }
         
-        // Generate new tokens
+        // Generate new tokens using inference decoder (TOP_K for creativity)
         for (int i = 0; i < max_length; ++i) {
             std::vector<float> brain_output = brain_->getBrocaOutput();
-            int next_token = gpu_decoder_->decodeAndSample(brain_output);
+            int next_token = inference_decoder_->decodeAndSample(brain_output);
             
             generated.push_back(next_token);
             
@@ -223,13 +232,40 @@ public:
         std::cout << "✅ Checkpoint loaded: " << path << std::endl;
     }
 
+    /**
+     * Get brain statistics
+     */
+    py::dict get_statistics() {
+        auto stats = brain_->getStats();
+        
+        py::dict result;
+        result["cognitive_cycles"] = stats.cognitive_cycles;
+        result["tokens_processed"] = stats.tokens_processed;
+        result["average_reward"] = stats.average_reward;
+        result["total_time_ms"] = stats.total_time_ms;
+        
+        // Module activities
+        py::dict module_stats;
+        for (const auto& [name, mod_stat] : stats.module_stats) {
+            py::dict mod_dict;
+            mod_dict["activity_level"] = mod_stat.activity_level;
+            mod_dict["dopamine_level"] = mod_stat.dopamine_level;
+            mod_dict["serotonin_level"] = mod_stat.serotonin_level;
+            module_stats[name.c_str()] = mod_dict;
+        }
+        result["modules"] = module_stats;
+        
+        return result;
+    }
+
 private:
     int vocab_size_;
     int embedding_dim_;
     int gpu_device_;
     std::unique_ptr<BrainOrchestrator> brain_;
     std::shared_ptr<TokenEmbedding> embedding_;
-    std::shared_ptr<GPUDecoder> gpu_decoder_;
+    std::shared_ptr<GPUDecoder> gpu_decoder_;        // Training decoder (GREEDY)
+    std::shared_ptr<GPUDecoder> inference_decoder_;  // Inference decoder (TOP_K)
 };
 
 // Python module definition
@@ -269,7 +305,11 @@ PYBIND11_MODULE(libneurogen, m) {
              "Save model checkpoint")
         .def("load_checkpoint", &NeuroGenModel::load_checkpoint,
              py::arg("path"),
-             "Load model checkpoint");
+             "Load model checkpoint")
+        .def("get_statistics", &NeuroGenModel::get_statistics,
+             "Get brain statistics\n\n"
+             "Returns:\n"
+             "    Dictionary of brain statistics");
     
     // Version info
     m.attr("__version__") = "2.0.0";

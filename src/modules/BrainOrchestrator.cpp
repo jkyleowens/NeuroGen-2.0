@@ -9,15 +9,15 @@
 
 BrainOrchestrator::BrainOrchestrator(const Config& config)
     : config_(config),
-      should_generate_output_(false),
       current_phase_(CognitivePhase::SENSATION),
       phase_timer_(0.0f),
       total_time_(0.0f),
-      time_since_consolidation_(0.0f),
       cognitive_cycles_(0),
       tokens_processed_(0),
+      should_generate_output_(false),
       average_reward_(0.0f),
-      processing_mode_(config.processing_mode) { // Initialized!
+      time_since_consolidation_(0.0f),
+      processing_mode_(config.processing_mode) {
     
     std::cout << "🧠 Initializing Brain Orchestrator..." << std::endl;
     std::cout << "   Processing Mode: " 
@@ -38,15 +38,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "Thalamus";
         config.num_neurons = 30720;  // 7.5x increase - expanded input pathway
         config.enable_plasticity = true;
-        config.learning_rate = 0.01f;
+        config.learning_rate = 0.0001f;  // REDUCED: Prevent weight explosion
         config.fanout_per_neuron = 64;
-        config.num_outputs = 2048;  // 2x increase for richer representations
+        config.num_outputs = 2048;  // 2x increase for richer representations (matches embedding_dim)
         config.num_inputs = 2048;
         config.modulation.dopamine_sensitivity = 0.3f;
         config.modulation.serotonin_sensitivity = 0.5f;
-        config.modulation.inhibition_level = 0.2f;
-        config.modulation.attention_threshold = 0.5f;  // High threshold for gating
-        config.modulation.excitability_bias = 1.0f;
+        config.modulation.inhibition_level = 0.1f;  // REDUCED: Allow more neural activity (was 0.2f)
+        config.modulation.attention_threshold = 0.2f;  // REDUCED: Let more signals through (was 0.5f)
+        config.modulation.excitability_bias = 1.3f;  // INCREASED: Boost responsiveness (was 1.0f)
         
         thalamus_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["Thalamus"] = thalamus_.get();
@@ -58,15 +58,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "Wernicke";
         config.num_neurons = 307200;  // 7.5x increase - massive semantic capacity
         config.enable_plasticity = true;
-        config.learning_rate = 0.05f;  // High learning for semantic encoding
+        config.learning_rate = 0.001f;  // REDUCED: Prevent weight saturation (was 0.05f)
         config.fanout_per_neuron = 96;  // Increased connectivity
         config.num_outputs = 10240;  // Scaled output for richer representations
         config.num_inputs = 10240;
         config.modulation.dopamine_sensitivity = 0.4f;
         config.modulation.serotonin_sensitivity = 0.3f;
-        config.modulation.inhibition_level = 0.1f;
-        config.modulation.attention_threshold = 0.2f;
-        config.modulation.excitability_bias = 1.2f;
+        config.modulation.inhibition_level = 0.05f;  // REDUCED: Allow more activity (was 0.1f)
+        config.modulation.attention_threshold = 0.15f;  // REDUCED: Lower filtering (was 0.2f)
+        config.modulation.excitability_bias = 1.4f;  // INCREASED: More responsive (was 1.2f)
         
         wernicke_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["Wernicke"] = wernicke_.get();
@@ -78,15 +78,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "Broca";
         config.num_neurons = 307200;  // 7.5x increase - match Wernicke for balanced processing
         config.enable_plasticity = true;
-        config.learning_rate = 0.03f;
+        config.learning_rate = 0.001f;  // REDUCED: Prevent weight saturation (was 0.03f)
         config.fanout_per_neuron = 96;  // Increased connectivity
         config.num_outputs = 8192;  // Optimized for GTX 1650 (4GB VRAM)
         config.num_inputs = 8192;   // Optimized for GTX 1650 (4GB VRAM)
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.4f;
-        config.modulation.inhibition_level = 0.8f;  // High inhibition by default
-        config.modulation.attention_threshold = 0.3f;
-        config.modulation.excitability_bias = 0.8f;
+        config.modulation.inhibition_level = 0.1f;  // REDUCED: Allow more activity (was 0.2f, originally 0.8f)
+        config.modulation.attention_threshold = 0.2f;  // REDUCED: Lower threshold (was 0.3f)
+        config.modulation.excitability_bias = 1.0f;  // INCREASED: Boost output (was 0.8f)
         
         broca_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["Broca"] = broca_.get();
@@ -98,7 +98,7 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "Hippocampus";
         config.num_neurons = 153600;  // 7.5x increase - much longer context memory
         config.enable_plasticity = true;
-        config.learning_rate = 0.15f;  // Very fast learning (3-5x cortical)
+        config.learning_rate = 0.005f;  // REDUCED: Still faster than cortical but controlled (was 0.15f)
         config.fanout_per_neuron = 96;  // Increased connectivity for associations
         config.num_outputs = 8192;  // Scaled memory representations
         config.num_inputs = 8192;
@@ -138,7 +138,7 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "BasalGanglia";
         config.num_neurons = 76800;  // 7.5x increase - sophisticated action selection
         config.enable_plasticity = true;
-        config.learning_rate = 0.08f;  // Moderate learning for RL
+        config.learning_rate = 0.002f;  // REDUCED: Controlled RL learning (was 0.08f)
         config.fanout_per_neuron = 96;  // Increased connectivity
         config.num_outputs = 4096;  // Scaled decision space
         config.num_inputs = 4096;
@@ -151,29 +151,8 @@ void BrainOrchestrator::initializeModules() {
         basal_ganglia_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["BasalGanglia"] = basal_ganglia_.get();
     }
-
-    // === NEW: Initialize Feedback Alignment Paths ===
-    // This creates the "fixed random mirrors" that allow credit assignment
-    // to propagate backward from the output to the cortex.
-    std::cout << "🔄 Initializing Feedback Alignment Paths..." << std::endl;
-
-    // 1. Output (Vocab) -> Broca
-    // Projects the high-dimensional error vector (32k) down to Broca's representation (8192)
-    // This tells Broca "You fired the wrong neurons for the token we wanted"
-    feedback_output_to_broca_ = std::make_unique<FeedbackMatrix>(
-        32000, // Input Dim: Vocabulary Size (Standard for SlimPajama/Llama tokenizer)
-        8192   // Output Dim: Broca's Output Dimension
-    );
-
-    // 2. Broca -> Wernicke
-    // Projects Broca's error signal back to the semantic comprehension area
-    // This tells Wernicke "You gave Broca the wrong semantic instructions"
-    feedback_broca_to_wernicke_ = std::make_unique<FeedbackMatrix>(
-        8192,  // Input Dim: Broca's Output Dimension
-        10240  // Output Dim: Wernicke's Output Dimension
-    );
     
-    std::cout << "✓ All modules and feedback paths initialized successfully" << std::endl;
+    std::cout << "✓ All modules initialized successfully" << std::endl;
 }
 
 void BrainOrchestrator::createConnectome() {
@@ -229,120 +208,69 @@ void BrainOrchestrator::createConnectome() {
     std::cout << "✓ Created " << connections_.size() << " inter-module connections" << std::endl;
 }
 
-// In src/modules/BrainOrchestrator.cpp
-
 std::vector<float> BrainOrchestrator::cognitiveStep(
-    const std::vector<float>& input_embedding, 
-    int target_token_id, 
-    GPUDecoder* decoder) 
-{
+    const std::vector<float>& input_embedding,
+    int target_token_id,
+    GPUDecoder* decoder) {
     // Route to appropriate processing mode
     if (processing_mode_ == ProcessingMode::PIPELINED) {
-        // Note: Pipelined mode would need similar updates for feedback
-        return pipelinedCognitiveStep(input_embedding);
+        return pipelinedCognitiveStep(input_embedding, target_token_id, decoder);
     }
     
+    // Sequential mode (original implementation)
     pending_input_ = input_embedding;
     std::vector<float> output;
     
-    // =========================================================================
-    // 1. PREDICTIVE SENSATION (Thalamus)
-    // =========================================================================
-    // Replaced standard input with "Predictive Gating" to prevent lobotomy
-    // by variance gating. We only pass the *unexpected* part of the signal.
-    
-    thalamus_->receiveInput(input_embedding);
-    
-    // Instead of blocking low variance, we block signals that match 
-    // top-down predictions from the PFC (Predictive Coding).
-    std::vector<float> pfc_prediction = pfc_->getOutputState();
-    std::vector<float> thalamic_error = thalamus_->calculatePredictionError(pfc_prediction);
-    
-    // Forward the prediction error (novelty) to Wernicke's Area
-    wernicke_->receiveInput(thalamic_error);
-
-    // =========================================================================
-    // 2. CORTICAL INTEGRATION (Perception & Selection)
-    // =========================================================================
-    
-    // Wernicke processes semantics
-    wernicke_->update(config_.time_step_ms, average_reward_);
-    auto semantic_state = wernicke_->getOutputState();
-    
-    // Hippocampus (Fast Learning / Context)
-    hippocampus_->receiveInput(semantic_state);
-    hippocampus_->update(config_.time_step_ms, average_reward_);
-    
-    // PFC (Executive Control & Working Memory)
-    // PFC receives bottom-up semantics and hippocampal context
-    pfc_->receiveInput(semantic_state);
-    pfc_->update(config_.time_step_ms, average_reward_);
-    
-    // Basal Ganglia (Gating)
-    basal_ganglia_->receiveInput(pfc_->getOutputState());
-    basal_ganglia_->update(config_.time_step_ms, average_reward_);
-    
-    // =========================================================================
-    // 3. ACTION GENERATION (Broca)
-    // =========================================================================
-    
-    // Check if Basal Ganglia allows output ("Go" signal)
-    float gating_signal = basal_ganglia_->getGatingSignal();
-    should_generate_output_ = (gating_signal > 0.5f);
-    
-    if (should_generate_output_) {
-        // Broca generates candidate output vector
-        broca_->receiveInput(pfc_->getOutputState());
-        broca_->update(config_.time_step_ms, average_reward_);
-        output = broca_->getOutputState();
-        
-        // Reset flag
-        should_generate_output_ = false;
-        tokens_processed_++;
+    // Execute the current phase
+    switch (current_phase_) {
+        case CognitivePhase::SENSATION:
+            executeSensationPhase(input_embedding);
+            break;
+        case CognitivePhase::PERCEPTION:
+            executePerceptionPhase();
+            break;
+        case CognitivePhase::INTEGRATION:
+            executeIntegrationPhase();
+            break;
+        case CognitivePhase::SELECTION:
+            executeSelectionPhase();
+            break;
+        case CognitivePhase::ACTION:
+            output = executeActionPhase();
+            break;
     }
-
-    // =========================================================================
-    // 4. FEEDBACK ALIGNMENT (The "Refinement" Step)
-    // =========================================================================
-    // This replaces the generic "Dopamine" broadcast with precise error vectors
     
-    if (target_token_id >= 0 && decoder != nullptr && !output.empty()) {
-        // A. Calculate Vector Error at the Readout
-        // Error = (Target_Vector - Actual_Output)
-        std::vector<float> error_vector = decoder->calculateErrorVector(output, target_token_id);
-        
-        // B. Project Error Backward to Broca (Feedback Alignment)
-        // We use a fixed random feedback matrix (B) to project the error
-        // into Broca's dimension. This allows Broca to know *which* neurons failed.
-        std::vector<float> broca_error_signal = feedback_output_to_broca_->project(error_vector);
-        
-        // Apply error-specific modulation to Broca (High error = High Plasticity locally)
-        broca_->modulateWithError(broca_error_signal);
-        
-        // C. Project Error Backward to Wernicke
-        // "It wasn't just my mouth (Broca), it was my understanding (Wernicke)"
-        std::vector<float> wernicke_error_signal = feedback_broca_to_wernicke_->project(broca_error_signal);
-        wernicke_->modulateWithError(wernicke_error_signal);
-        
-        // D. Update Decoder Weights (The "Trainable Broca" fix)
-        // This aligns the random projection with the actual brain states
-        decoder->updateWeights(output, target_token_id, 0.01f); // learning rate
+    // Update all modules
+    for (auto& [name, module] : module_map_) {
+        module->update(config_.time_step_ms, average_reward_);
     }
-
-    // =========================================================================
-    // 5. HOUSEKEEPING
-    // =========================================================================
     
-    // Update connections and timers
+    // Route signals between modules
     routeSignals();
     
+    // Update timers
+    phase_timer_ += config_.time_step_ms;
     total_time_ += config_.time_step_ms;
     time_since_consolidation_ += config_.time_step_ms;
     
+    // Check if we should advance to next phase
+    if (phase_timer_ >= getPhaseDuration(current_phase_)) {
+        advancePhase();
+    }
+    
+    // Periodic memory consolidation
     if (config_.enable_consolidation && 
         time_since_consolidation_ >= config_.consolidation_interval_ms) {
         consolidateMemory();
         time_since_consolidation_ = 0.0f;
+    }
+    
+    // SAFETY BREAK: Ensure output doesn't block indefinitely
+    // If we're in ACTION phase but no output generated yet, 
+    // force a break if we've been here too long to prevent infinite loops
+    if (current_phase_ == CognitivePhase::ACTION && phase_timer_ > getPhaseDuration(current_phase_) * 2.0f) {
+         should_generate_output_ = false;
+         advancePhase();
     }
     
     return output;
@@ -544,7 +472,7 @@ BrainOrchestrator::Stats BrainOrchestrator::getStats() const {
         float activity = output.empty() ? 0.0f : 
             std::accumulate(output.begin(), output.end(), 0.0f) / output.size();
         
-        ModuleStats mod_stats; // Now defined in class
+        ModuleStats mod_stats;
         mod_stats.activity_level = activity;
         mod_stats.dopamine_level = module->getDopamineLevel();
         mod_stats.serotonin_level = module->getSerotoninLevel();
@@ -556,10 +484,6 @@ BrainOrchestrator::Stats BrainOrchestrator::getStats() const {
 }
 
 persistence::BrainSnapshot BrainOrchestrator::captureSnapshot() const {
-    // MODIFIED: This function now captures METADATA ONLY.
-    // Heavy neuron/synapse data is streamed directly to disk in saveCheckpoint
-    // to prevent OOM errors with large models.
-
     persistence::BrainSnapshot snapshot;
     snapshot.format_version = persistence::kCheckpointFormatVersion;
     snapshot.training_step = static_cast<uint64_t>(
@@ -598,9 +522,10 @@ persistence::BrainSnapshot BrainOrchestrator::captureSnapshot() const {
         module_snapshot.serotonin_level = module->getSerotoninLevel();
         module_snapshot.working_memory = module->getWorkingMemory();
 
-        // NOTE: We deliberately do NOT capture neurons and synapses here to save RAM.
-        // They will be fetched individually during the streaming write process.
-        
+        // Use CorticalModule wrappers to avoid NetworkCUDA dependency here
+        module_snapshot.neurons = module->getNeuronStates();
+        module_snapshot.synapses = module->getSynapseStates();
+
         snapshot.modules.push_back(std::move(module_snapshot));
     }
 
@@ -637,71 +562,69 @@ persistence::BrainSnapshot BrainOrchestrator::captureSnapshot() const {
 
 bool BrainOrchestrator::saveCheckpoint(const std::string& file_path) const {
     persistence::CheckpointWriter writer(file_path);
-    
-    // 1. Capture lightweight metadata (no heavy tensors)
     auto snapshot = captureSnapshot();
     
-    // 2. Initialize file and write metadata section
+    // Initialize and write the checkpoint
     if (!writer.initialize(snapshot)) {
-        std::cerr << "❌ Failed to initialize checkpoint writer: " << file_path << std::endl;
+        std::cerr << "❌ Failed to initialize checkpoint: " << file_path << std::endl;
         return false;
     }
     
     if (!writer.writeMetadataSection(snapshot)) {
-        std::cerr << "❌ Failed to write metadata section" << std::endl;
+        std::cerr << "❌ Failed to write metadata section: " << file_path << std::endl;
         return false;
     }
-
-    // 3. Streaming Write: NEURONS
-    // We iterate through the captured snapshot modules to ensure consistent order
-    writer.beginNeuronSection(static_cast<uint32_t>(snapshot.modules.size()));
-    uint32_t mod_idx = 0;
     
-    // Create a temporary lookup for modules to avoid constant string searching
-    std::unordered_map<std::string, CorticalModule*> module_lookup;
-    for (const auto& [name, ptr] : module_map_) {
-        module_lookup[name] = ptr;
+    // Write neurons
+    if (!writer.beginNeuronSection(snapshot.modules.size())) {
+        std::cerr << "❌ Failed to begin neuron section: " << file_path << std::endl;
+        return false;
     }
-
-    for (const auto& mod_snap : snapshot.modules) {
-        auto it = module_lookup.find(mod_snap.config.module_name);
-        if (it != module_lookup.end() && it->second) {
-            // Fetch HUGE vector from GPU momentarily
-            auto neurons = it->second->getNeuronStates();
-            // Write to disk immediately
-            if (!writer.writeModuleNeurons(mod_idx, neurons)) {
-                std::cerr << "❌ Failed to write neurons for module: " 
-                          << mod_snap.config.module_name << std::endl;
-                return false;
-            }
-            // 'neurons' vector goes out of scope here and is freed from RAM
+    for (const auto& module : snapshot.modules) {
+        if (!writer.writeModuleNeurons(module.module_index, module.neurons)) {
+            std::cerr << "❌ Failed to write neurons for module: " << module.config.module_name << std::endl;
+            return false;
         }
-        mod_idx++;
     }
-    writer.endNeuronSection();
-
-    // 4. Streaming Write: SYNAPSES
-    writer.beginSynapseSection(static_cast<uint32_t>(snapshot.modules.size()));
-    mod_idx = 0;
-    for (const auto& mod_snap : snapshot.modules) {
-        auto it = module_lookup.find(mod_snap.config.module_name);
-        if (it != module_lookup.end() && it->second) {
-            auto synapses = it->second->getSynapseStates();
-            if (!writer.writeModuleSynapses(mod_idx, synapses)) {
-                std::cerr << "❌ Failed to write synapses for module: " 
-                          << mod_snap.config.module_name << std::endl;
-                return false;
-            }
+    if (!writer.endNeuronSection()) {
+        std::cerr << "❌ Failed to end neuron section: " << file_path << std::endl;
+        return false;
+    }
+    
+    // Write synapses
+    if (!writer.beginSynapseSection(snapshot.modules.size())) {
+        std::cerr << "❌ Failed to begin synapse section: " << file_path << std::endl;
+        return false;
+    }
+    for (const auto& module : snapshot.modules) {
+        if (!writer.writeModuleSynapses(module.module_index, module.synapses)) {
+            std::cerr << "❌ Failed to write synapses for module: " << module.config.module_name << std::endl;
+            return false;
         }
-        mod_idx++;
     }
-    writer.endSynapseSection();
-
-    // 5. Write remaining small sections
-    writer.writeOptimizerSection(snapshot);
-    writer.writeRandomStateSection(snapshot);
-
-    return writer.finalize();
+    if (!writer.endSynapseSection()) {
+        std::cerr << "❌ Failed to end synapse section: " << file_path << std::endl;
+        return false;
+    }
+    
+    // Write optimizer and random state
+    if (!writer.writeOptimizerSection(snapshot)) {
+        std::cerr << "❌ Failed to write optimizer section: " << file_path << std::endl;
+        return false;
+    }
+    
+    if (!writer.writeRandomStateSection(snapshot)) {
+        std::cerr << "❌ Failed to write random state section: " << file_path << std::endl;
+        return false;
+    }
+    
+    // Finalize
+    if (!writer.finalize()) {
+        std::cerr << "❌ Failed to finalize checkpoint: " << file_path << std::endl;
+        return false;
+    }
+    
+    return true;
 }
 
 bool BrainOrchestrator::loadCheckpoint(const std::string& file_path) {
@@ -834,77 +757,36 @@ void BrainOrchestrator::setProcessingMode(ProcessingMode mode) {
 // PIPELINED PROCESSING IMPLEMENTATION
 // ============================================================================
 
-// In src/modules/BrainOrchestrator.cpp
-
 std::vector<float> BrainOrchestrator::pipelinedCognitiveStep(
     const std::vector<float>& input_embedding,
     int target_token_id,
-    GPUDecoder* decoder) 
-{
+    GPUDecoder* decoder) {
     std::vector<float> output;
     
-    // ========================================================================
-    // STAGE 1: PREDICTIVE SENSATION (Thalamus)
-    // ========================================================================
-    // Instead of just encoding input, we compare it against the PFC's 
-    // prediction from the previous timestep (Predictive Coding).
+    // STAGE 1: Fast Input Encoding (50ms equivalent)
+    // Thalamus rapidly encodes new token to working memory
+    // Create prediction vector (placeholder for now)
+    std::vector<float> prediction(input_embedding.size(), 0.0f);
+    fastInputEncoding(input_embedding, prediction);
     
-    // Use previous hidden state as a proxy for top-down prediction
-    std::vector<float> top_down_prediction = pipeline_state_.pfc_hidden_state;
-    
-    // fastInputEncoding now performs "Novelty Gating"
-    fastInputEncoding(input_embedding, top_down_prediction);
-    
-    // ========================================================================
-    // STAGE 2: PARALLEL CORTICAL PROCESSING
-    // ========================================================================
-    // Process the PREVIOUS working memory while Thalamus encodes the NEW input.
-    // This parallelism is what makes this mode fast.
-    
+    // STAGE 2: Parallel Cortical Processing
+    // Modules operate on PREVIOUS working memory while new input is being encoded
     parallelCorticalProcessing();
     
-    // ========================================================================
-    // STAGE 3: CONDITIONAL OUTPUT GENERATION
-    // ========================================================================
-    // Broca decides if it has enough context to speak.
-    
+    // STAGE 3: Conditional Output Generation
+    // Broca outputs only when Basal Ganglia signals "ready"
     output = conditionalOutputGeneration();
     
-    // ========================================================================
-    // STAGE 4: FEEDBACK ALIGNMENT (The Learning Step)
-    // ========================================================================
-    // If Broca produced an output, we must immediately correct it if we have a target.
-    
-    if (!output.empty() && target_token_id >= 0 && decoder != nullptr) {
-        // A. Calculate Error Vector (Target - Output)
-        std::vector<float> error_vector = decoder->calculateErrorVector(output, target_token_id);
-        
-        // B. Project Error to Broca (Feedback Alignment)
-        // "Broca, you fired the wrong neurons for this concept."
-        std::vector<float> broca_error = feedback_output_to_broca_->project(error_vector);
-        broca_->modulateWithError(broca_error);
-        
-        // C. Project Error to Wernicke
-        // "Wernicke, you fed Broca the wrong semantic information."
-        std::vector<float> wernicke_error = feedback_broca_to_wernicke_->project(broca_error);
-        wernicke_->modulateWithError(wernicke_error);
-        
-        // D. Train the Decoder (The Delta Rule)
-        // Adjust the random projection to better match Broca's actual state.
-        decoder->updateWeights(output, target_token_id, 0.01f);
-    }
-    
-    // ========================================================================
-    // STAGE 5: RECURRENT STATE UPDATE
-    // ========================================================================
-    
+    // STAGE 4: Update Recurrent State
+    // Maintain PFC and Hippocampus hidden states for temporal context
     updateRecurrentState();
     
-    // Update timers and stats
+    // Update timers
     total_time_ += config_.time_step_ms;
     time_since_consolidation_ += config_.time_step_ms;
     pipeline_state_.accumulated_processing_time += config_.time_step_ms;
     
+    // Periodic memory consolidation
     if (config_.enable_consolidation && 
         time_since_consolidation_ >= config_.consolidation_interval_ms) {
         consolidateMemory();
@@ -914,51 +796,39 @@ std::vector<float> BrainOrchestrator::pipelinedCognitiveStep(
     return output;
 }
 
-// In src/modules/BrainOrchestrator.cpp
-
-void BrainOrchestrator::fastInputEncoding(
-    const std::vector<float>& input, 
-    const std::vector<float>& prediction) 
-{
-    // Thalamus receives raw sensory input
+void BrainOrchestrator::fastInputEncoding(const std::vector<float>& input, const std::vector<float>& prediction) {
+    // Thalamus receives and gates input
     thalamus_->receiveInput(input);
     
-    // CALCULATE PREDICTION ERROR (Novelty)
-    // If the PFC predicted this input, the error is zero.
-    // We only pass the *unexpected* part of the signal to the cortex.
-    std::vector<float> thalamic_error = thalamus_->calculatePredictionError(prediction);
+    // Calculate signal-to-noise ratio for gating
+    float snr = thalamus_->calculateSignalToNoise(input);
     
-    // Calculate Signal-to-Noise Ratio on the ERROR, not the raw input
-    // High SNR here means "Something unexpected happened" -> Attention!
-    float snr = thalamus_->calculateSignalToNoise(thalamic_error);
+    // Apply gating based on attention threshold
+    auto gated_signal = thalamus_->gateSignal(input, 
+        thalamus_->getConfig().modulation.attention_threshold);
     
-    // Update Thalamus dynamics
+    // Update thalamus (fast: ~10-20ms biological equivalent)
     thalamus_->update(config_.time_step_ms, average_reward_);
     
-    // Shift Pipeline
+    // Shift working memory buffer
     pipeline_state_.wm_previous = pipeline_state_.wm_current;
     
-    // Gating Logic:
-    // If the signal is novel (high prediction error), encode it into Working Memory.
-    // If it is predicted (low error), reduce the signal strength to save energy.
+    // Encode to current working memory
     if (snr > thalamus_->getConfig().modulation.attention_threshold) {
-        // Pass the Error Signal (Novelty) to Wernicke's
-        pipeline_state_.wm_current = thalamic_error;
+        pipeline_state_.wm_current = thalamus_->getOutputState();
     } else {
-        // Input was predicted; pass a dampened signal
-        // This allows the brain to focus on new information
-        auto gated_signal = thalamus_->gateSignal(thalamic_error, 0.5f);
+        // Low SNR: inject minimal signal
         pipeline_state_.wm_current = gated_signal;
     }
     
-    // Update Context Buffer (Exponential Moving Average)
+    // Accumulate context (sliding window)
     if (pipeline_state_.wm_context.empty()) {
         pipeline_state_.wm_context = pipeline_state_.wm_current;
     } else {
-        // Blend new novelty into the context
+        // Exponential moving average of context
         float decay = 0.9f;
-        size_t size = std::min(pipeline_state_.wm_context.size(), pipeline_state_.wm_current.size());
-        for (size_t i = 0; i < size; ++i) {
+        for (size_t i = 0; i < std::min(pipeline_state_.wm_context.size(), 
+                                        pipeline_state_.wm_current.size()); ++i) {
             pipeline_state_.wm_context[i] = 
                 decay * pipeline_state_.wm_context[i] + 
                 (1.0f - decay) * pipeline_state_.wm_current[i];

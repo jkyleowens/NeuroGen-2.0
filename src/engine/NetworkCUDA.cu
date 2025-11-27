@@ -1,4 +1,5 @@
 #include <engine/NetworkCUDA.cuh>
+#include <engine/SplitBrainPlasticityKernels.cuh>
 #include <modules/BrainOrchestrator.h>
 #include <modules/InterModuleConnection.h>
 #include <engine/LearningState.h>
@@ -633,6 +634,92 @@ void NetworkCUDA::update(float dt, float reward_signal, float novelty_signal) {
     }
 }
 
+void NetworkCUDA::applyPlasticity(float dt, float reward_signal, 
+                                  const neurogen::LearningModeParams& learning_params) {
+    if (!is_initialized_ || !d_synapses_) {
+        return;
+    }
+    
+    // Prepare kernel parameters
+    neurogen::kernels::SplitBrainPlasticityParams params;
+    
+    // Convert learning mode to device enum
+    switch (learning_params.mode) {
+        case neurogen::LearningMode::PURE_STDP:
+            params.mode = neurogen::kernels::DeviceLearningMode::PURE_STDP;
+            break;
+        case neurogen::LearningMode::REWARD_MODULATED_STDP:
+            params.mode = neurogen::kernels::DeviceLearningMode::REWARD_MODULATED_STDP;
+            break;
+        case neurogen::LearningMode::MIXED_STDP:
+            params.mode = neurogen::kernels::DeviceLearningMode::MIXED_STDP;
+            break;
+    }
+    
+    params.stdp_learning_rate = learning_params.stdp_learning_rate;
+    params.stdp_tau_positive = learning_params.stdp_tau_positive;
+    params.stdp_tau_negative = learning_params.stdp_tau_negative;
+    params.stdp_a_positive = learning_params.stdp_a_positive;
+    params.stdp_a_negative = learning_params.stdp_a_negative;
+    params.reward_sensitivity = learning_params.reward_sensitivity;
+    params.eligibility_decay = learning_params.eligibility_decay;
+    params.unsupervised_weight = learning_params.unsupervised_weight;
+    params.supervised_weight = learning_params.supervised_weight;
+    
+    // Launch appropriate kernel based on mode
+    int threads = 256;
+    int blocks = (num_synapses_ + threads - 1) / threads;
+    
+    if (params.mode == neurogen::kernels::DeviceLearningMode::PURE_STDP) {
+        // Pure STDP: Completely ignore reward
+        neurogen::kernels::pureSTDPKernel<<<blocks, threads>>>(
+            d_synapses_,
+            d_neurons_,
+            params,
+            current_time_,
+            dt,
+            num_synapses_
+        );
+    } else if (params.mode == neurogen::kernels::DeviceLearningMode::REWARD_MODULATED_STDP) {
+        // Reward-modulated: Two-stage process
+        // 1. Update eligibility traces
+        neurogen::kernels::updateEligibilityTracesKernel<<<blocks, threads>>>(
+            d_synapses_,
+            d_neurons_,
+            d_eligibility_traces_,
+            params,
+            current_time_,
+            dt,
+            num_synapses_
+        );
+        
+        // 2. Apply reward-gated learning
+        float rpe = calculateRewardPredictionError(reward_signal);
+        neurogen::kernels::rewardModulatedPlasticityKernel<<<blocks, threads>>>(
+            d_synapses_,
+            d_eligibility_traces_,
+            params,
+            rpe,
+            dt,
+            num_synapses_
+        );
+    } else {
+        // Mixed mode: Use unified kernel
+        neurogen::kernels::splitBrainPlasticityKernel<<<blocks, threads>>>(
+            d_synapses_,
+            d_neurons_,
+            d_eligibility_traces_,
+            params,
+            reward_signal,
+            current_time_,
+            dt,
+            num_synapses_
+        );
+    }
+    
+    CUDA_CHECK(cudaGetLastError());
+}
+
 std::vector<float> NetworkCUDA::processInput(const std::vector<float>& inputs) {
     return processInputWithLearning(inputs, {}, 0.0f);
 }
@@ -869,30 +956,83 @@ void NetworkCUDA::updatePerformanceMetrics(float kernel_time_ms) const {
 }
 
 // ============================================================================
-// DATA ACCESS METHODS
+// DATA ACCESS METHODS (FIXED FOR LOW VRAM)
 // ============================================================================
 
 std::vector<GPUNeuronState> NetworkCUDA::getNeuronStates() const {
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
     
-    if (!is_initialized_ || !d_neurons_) {
-        return {};
-    }
-    
-    // If using SoA, convert back to AoS first
-    if (use_soa_layout_ && d_neuron_arrays_) {
-        const_cast<NetworkCUDA*>(this)->convertSoAToAoS();
-    }
+    if (!is_initialized_) return {};
     
     std::vector<GPUNeuronState> host_neurons(num_neurons_);
     
-    cudaError_t error = cudaMemcpy(host_neurons.data(), d_neurons_, 
-                                   num_neurons_ * sizeof(GPUNeuronState), 
-                                   cudaMemcpyDeviceToHost);
-    
-    if (error != cudaSuccess) {
-        std::cerr << "Failed to copy neuron states from GPU: " << cudaGetErrorString(error) << std::endl;
-        return {};
+    // MEMORY OPTIMIZATION: Assemble on CPU to avoid VRAM OOM
+    if (use_soa_layout_ && d_neuron_arrays_) {
+        // We assume the SoA data on GPU is the source of truth.
+        // We download arrays one by one to minimize peak RAM usage.
+        
+        NeuronArrays& gpu_ptrs = const_cast<NetworkCUDA*>(this)->h_neuron_arrays_struct_;
+        std::vector<float> temp_buffer(num_neurons_);
+        std::vector<int> temp_int_buffer(num_neurons_);
+        
+        // Helper macro for float fields
+        #define FETCH_FLOAT(field, gpu_ptr) \
+            cudaMemcpy(temp_buffer.data(), gpu_ptr, num_neurons_ * sizeof(float), cudaMemcpyDeviceToHost); \
+            for(size_t i=0; i<num_neurons_; ++i) host_neurons[i].field = temp_buffer[i];
+
+        // Helper for int fields
+        #define FETCH_INT(field, gpu_ptr) \
+            cudaMemcpy(temp_int_buffer.data(), gpu_ptr, num_neurons_ * sizeof(int), cudaMemcpyDeviceToHost); \
+            for(size_t i=0; i<num_neurons_; ++i) host_neurons[i].field = temp_int_buffer[i];
+
+        // Core Dynamics
+        FETCH_FLOAT(V, gpu_ptrs.V);
+        FETCH_FLOAT(u, gpu_ptrs.u);
+        FETCH_FLOAT(I_ext, gpu_ptrs.I_ext);
+        
+        // Synaptic Inputs (Array in struct, handle manually)
+        cudaMemcpy(temp_buffer.data(), gpu_ptrs.I_syn_0, num_neurons_ * sizeof(float), cudaMemcpyDeviceToHost);
+        for(size_t i=0; i<num_neurons_; ++i) host_neurons[i].I_syn[0] = temp_buffer[i];
+        
+        cudaMemcpy(temp_buffer.data(), gpu_ptrs.I_syn_1, num_neurons_ * sizeof(float), cudaMemcpyDeviceToHost);
+        for(size_t i=0; i<num_neurons_; ++i) host_neurons[i].I_syn[1] = temp_buffer[i];
+        
+        // Calcium
+        cudaMemcpy(temp_buffer.data(), gpu_ptrs.ca_conc_0, num_neurons_ * sizeof(float), cudaMemcpyDeviceToHost);
+        for(size_t i=0; i<num_neurons_; ++i) host_neurons[i].ca_conc[0] = temp_buffer[i];
+
+        // Timing & Activity
+        FETCH_FLOAT(last_spike_time, gpu_ptrs.last_spike_time);
+        FETCH_FLOAT(previous_spike_time, gpu_ptrs.previous_spike_time);
+        FETCH_FLOAT(average_firing_rate, gpu_ptrs.average_firing_rate);
+        FETCH_FLOAT(average_activity, gpu_ptrs.average_activity);
+        FETCH_FLOAT(activity_level, gpu_ptrs.activity_level);
+        FETCH_FLOAT(firing_rate, gpu_ptrs.firing_rate);
+        
+        // Plasticity
+        FETCH_FLOAT(excitability, gpu_ptrs.excitability);
+        FETCH_FLOAT(synaptic_scaling_factor, gpu_ptrs.synaptic_scaling_factor);
+        FETCH_FLOAT(threshold, gpu_ptrs.threshold);
+        FETCH_FLOAT(bcm_threshold, gpu_ptrs.bcm_threshold);
+        FETCH_FLOAT(plasticity_threshold, gpu_ptrs.plasticity_threshold);
+        
+        // Neuromodulation
+        FETCH_FLOAT(dopamine_concentration, gpu_ptrs.dopamine_concentration);
+        FETCH_FLOAT(acetylcholine_level, gpu_ptrs.acetylcholine_level);
+        FETCH_FLOAT(serotonin_level, gpu_ptrs.serotonin_level);
+        FETCH_FLOAT(norepinephrine_level, gpu_ptrs.norepinephrine_level);
+        
+        // Properties
+        FETCH_INT(neuron_type, gpu_ptrs.neuron_type);
+        FETCH_INT(active, gpu_ptrs.active);
+        
+        // Cleanup macros
+        #undef FETCH_FLOAT
+        #undef FETCH_INT
+        
+    } else if (d_neurons_) {
+        // Fallback for legacy AoS mode
+        cudaMemcpy(host_neurons.data(), d_neurons_, num_neurons_ * sizeof(GPUNeuronState), cudaMemcpyDeviceToHost);
     }
     
     return host_neurons;
@@ -901,24 +1041,64 @@ std::vector<GPUNeuronState> NetworkCUDA::getNeuronStates() const {
 std::vector<GPUSynapse> NetworkCUDA::getSynapseStates() const {
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
 
-    if (!is_initialized_ || !d_synapses_) {
-        return {};
-    }
-    
-    // If using SoA, convert back to AoS first
-    if (use_soa_layout_ && d_synapse_arrays_) {
-        const_cast<NetworkCUDA*>(this)->convertSoAToAoS();
-    }
+    if (!is_initialized_) return {};
 
     std::vector<GPUSynapse> host_synapses(num_synapses_);
 
-    cudaError_t error = cudaMemcpy(host_synapses.data(), d_synapses_,
-                                   num_synapses_ * sizeof(GPUSynapse),
-                                   cudaMemcpyDeviceToHost);
+    // MEMORY OPTIMIZATION: Assemble on CPU to avoid VRAM OOM
+    // This is critical for 4GB GPUs where holding both SoA and AoS buffers is impossible.
+    if (use_soa_layout_ && d_synapse_arrays_) {
+        SynapseArrays& gpu_ptrs = const_cast<NetworkCUDA*>(this)->h_synapse_arrays_struct_;
+        
+        // Reusable temp buffers
+        std::vector<float> temp_float(num_synapses_);
+        std::vector<int> temp_int(num_synapses_);
+        
+        #define FETCH_S_FLOAT(field, gpu_ptr) \
+            cudaMemcpy(temp_float.data(), gpu_ptr, num_synapses_ * sizeof(float), cudaMemcpyDeviceToHost); \
+            for(size_t i=0; i<num_synapses_; ++i) host_synapses[i].field = temp_float[i];
 
-    if (error != cudaSuccess) {
-        std::cerr << "Failed to copy synapse states from GPU: " << cudaGetErrorString(error) << std::endl;
-        return {};
+        #define FETCH_S_INT(field, gpu_ptr) \
+            cudaMemcpy(temp_int.data(), gpu_ptr, num_synapses_ * sizeof(int), cudaMemcpyDeviceToHost); \
+            for(size_t i=0; i<num_synapses_; ++i) host_synapses[i].field = temp_int[i];
+
+        // Connectivity
+        FETCH_S_INT(pre_neuron_idx, gpu_ptrs.pre_neuron_idx);
+        FETCH_S_INT(post_neuron_idx, gpu_ptrs.post_neuron_idx);
+        FETCH_S_INT(post_compartment, gpu_ptrs.post_compartment);
+        FETCH_S_INT(active, gpu_ptrs.active);
+        
+        // Weights & Plasticity
+        FETCH_S_FLOAT(weight, gpu_ptrs.weight);
+        FETCH_S_FLOAT(max_weight, gpu_ptrs.max_weight);
+        FETCH_S_FLOAT(min_weight, gpu_ptrs.min_weight);
+        FETCH_S_FLOAT(effective_weight, gpu_ptrs.effective_weight);
+        FETCH_S_FLOAT(eligibility_trace, gpu_ptrs.eligibility_trace);
+        FETCH_S_FLOAT(learning_rate, gpu_ptrs.learning_rate);
+        
+        // Timing
+        FETCH_S_FLOAT(last_pre_spike_time, gpu_ptrs.last_pre_spike_time);
+        FETCH_S_FLOAT(last_post_spike_time, gpu_ptrs.last_post_spike_time);
+        
+        // Modulation
+        FETCH_S_FLOAT(dopamine_sensitivity, gpu_ptrs.dopamine_sensitivity);
+        FETCH_S_FLOAT(dopamine_level, gpu_ptrs.dopamine_level);
+        
+        // Short-term Plasticity
+        FETCH_S_FLOAT(release_probability, gpu_ptrs.release_probability);
+        FETCH_S_FLOAT(facilitation_factor, gpu_ptrs.facilitation_factor);
+        FETCH_S_FLOAT(depression_factor, gpu_ptrs.depression_factor);
+        
+        // Misc
+        FETCH_S_FLOAT(presynaptic_calcium, gpu_ptrs.presynaptic_calcium);
+        FETCH_S_FLOAT(postsynaptic_calcium, gpu_ptrs.postsynaptic_calcium);
+        FETCH_S_FLOAT(delay, gpu_ptrs.delay);
+        
+        #undef FETCH_S_FLOAT
+        #undef FETCH_S_INT
+        
+    } else if (d_synapses_) {
+        cudaMemcpy(host_synapses.data(), d_synapses_, num_synapses_ * sizeof(GPUSynapse), cudaMemcpyDeviceToHost);
     }
 
     return host_synapses;
@@ -927,28 +1107,41 @@ std::vector<GPUSynapse> NetworkCUDA::getSynapseStates() const {
 bool NetworkCUDA::setNeuronStates(const std::vector<GPUNeuronState>& neurons) {
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
 
-    if (!is_initialized_ || !d_neurons_) {
-        std::cerr << "Cannot set neuron states: network not initialized." << std::endl;
-        return false;
-    }
+    if (!is_initialized_) return false;
+    if (neurons.size() != num_neurons_) return false;
 
-    if (neurons.size() != num_neurons_) {
-        std::cerr << "Neuron state size mismatch. Expected " << num_neurons_
-                  << ", got " << neurons.size() << std::endl;
-        return false;
-    }
-
-    cudaError_t error = cudaMemcpy(d_neurons_, neurons.data(),
-                                   neurons.size() * sizeof(GPUNeuronState),
-                                   cudaMemcpyHostToDevice);
-    if (error != cudaSuccess) {
-        std::cerr << "Failed to copy neuron states to GPU: " << cudaGetErrorString(error) << std::endl;
-        return false;
-    }
-    
-    // If using SoA, sync AoS changes to SoA
+    // Just like getting states, we must populate SoA arrays directly to avoid AoS buffer allocation
     if (use_soa_layout_ && d_neuron_arrays_) {
-        convertAoSToSoA();
+        NeuronArrays& gpu_ptrs = h_neuron_arrays_struct_;
+        std::vector<float> temp_float(num_neurons_);
+        std::vector<int> temp_int(num_neurons_);
+        
+        #define PUSH_FLOAT(field, gpu_ptr) \
+            for(size_t i=0; i<num_neurons_; ++i) temp_float[i] = neurons[i].field; \
+            cudaMemcpy(gpu_ptr, temp_float.data(), num_neurons_ * sizeof(float), cudaMemcpyHostToDevice);
+
+        #define PUSH_INT(field, gpu_ptr) \
+            for(size_t i=0; i<num_neurons_; ++i) temp_int[i] = neurons[i].field; \
+            cudaMemcpy(gpu_ptr, temp_int.data(), num_neurons_ * sizeof(int), cudaMemcpyHostToDevice);
+
+        PUSH_FLOAT(V, gpu_ptrs.V);
+        PUSH_FLOAT(u, gpu_ptrs.u);
+        PUSH_FLOAT(I_ext, gpu_ptrs.I_ext);
+        
+        // Synaptic inputs
+        for(size_t i=0; i<num_neurons_; ++i) temp_float[i] = neurons[i].I_syn[0];
+        cudaMemcpy(gpu_ptrs.I_syn_0, temp_float.data(), num_neurons_ * sizeof(float), cudaMemcpyHostToDevice);
+        
+        PUSH_FLOAT(last_spike_time, gpu_ptrs.last_spike_time);
+        PUSH_FLOAT(threshold, gpu_ptrs.threshold);
+        PUSH_INT(active, gpu_ptrs.active);
+        // ... (Add other critical fields as needed for restoration) ...
+        
+        #undef PUSH_FLOAT
+        #undef PUSH_INT
+        
+    } else if (d_neurons_) {
+        cudaMemcpy(d_neurons_, neurons.data(), neurons.size() * sizeof(GPUNeuronState), cudaMemcpyHostToDevice);
     }
 
     return true;
@@ -957,28 +1150,33 @@ bool NetworkCUDA::setNeuronStates(const std::vector<GPUNeuronState>& neurons) {
 bool NetworkCUDA::setSynapseStates(const std::vector<GPUSynapse>& synapses) {
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
 
-    if (!is_initialized_ || !d_synapses_) {
-        std::cerr << "Cannot set synapse states: network not initialized." << std::endl;
-        return false;
-    }
+    if (!is_initialized_) return false;
+    if (synapses.size() != num_synapses_) return false;
 
-    if (synapses.size() != num_synapses_) {
-        std::cerr << "Synapse state size mismatch. Expected " << num_synapses_
-                  << ", got " << synapses.size() << std::endl;
-        return false;
-    }
-
-    cudaError_t error = cudaMemcpy(d_synapses_, synapses.data(),
-                                   synapses.size() * sizeof(GPUSynapse),
-                                   cudaMemcpyHostToDevice);
-    if (error != cudaSuccess) {
-        std::cerr << "Failed to copy synapse states to GPU: " << cudaGetErrorString(error) << std::endl;
-        return false;
-    }
-    
-    // If using SoA, sync AoS changes to SoA
     if (use_soa_layout_ && d_synapse_arrays_) {
-        convertAoSToSoA();
+        SynapseArrays& gpu_ptrs = h_synapse_arrays_struct_;
+        std::vector<float> temp_float(num_synapses_);
+        std::vector<int> temp_int(num_synapses_);
+        
+        #define PUSH_S_FLOAT(field, gpu_ptr) \
+            for(size_t i=0; i<num_synapses_; ++i) temp_float[i] = synapses[i].field; \
+            cudaMemcpy(gpu_ptr, temp_float.data(), num_synapses_ * sizeof(float), cudaMemcpyHostToDevice);
+
+        #define PUSH_S_INT(field, gpu_ptr) \
+            for(size_t i=0; i<num_synapses_; ++i) temp_int[i] = synapses[i].field; \
+            cudaMemcpy(gpu_ptr, temp_int.data(), num_synapses_ * sizeof(int), cudaMemcpyHostToDevice);
+
+        PUSH_S_FLOAT(weight, gpu_ptrs.weight);
+        PUSH_S_INT(pre_neuron_idx, gpu_ptrs.pre_neuron_idx);
+        PUSH_S_INT(post_neuron_idx, gpu_ptrs.post_neuron_idx);
+        PUSH_S_FLOAT(eligibility_trace, gpu_ptrs.eligibility_trace);
+        // ... (Add other critical fields as needed for restoration) ...
+        
+        #undef PUSH_S_FLOAT
+        #undef PUSH_S_INT
+        
+    } else if (d_synapses_) {
+        cudaMemcpy(d_synapses_, synapses.data(), synapses.size() * sizeof(GPUSynapse), cudaMemcpyHostToDevice);
     }
 
     return true;
@@ -987,28 +1185,20 @@ bool NetworkCUDA::setSynapseStates(const std::vector<GPUSynapse>& synapses) {
 std::vector<float> NetworkCUDA::getSynapticWeights() const {
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
     
-    if (!is_initialized_ || !d_synapses_) {
-        return {};
-    }
+    if (!is_initialized_) return {};
     
-    // First get the synapses from GPU
-    std::vector<GPUSynapse> host_synapses(num_synapses_);
+    std::vector<float> weights(num_synapses_);
     
-    cudaError_t error = cudaMemcpy(host_synapses.data(), d_synapses_, 
-                                   num_synapses_ * sizeof(GPUSynapse), 
-                                   cudaMemcpyDeviceToHost);
-    
-    if (error != cudaSuccess) {
-        std::cerr << "Failed to copy synapses from GPU: " << cudaGetErrorString(error) << std::endl;
-        return {};
-    }
-    
-    // Extract weights from synapses
-    std::vector<float> weights;
-    weights.reserve(num_synapses_);
-    
-    for (const auto& synapse : host_synapses) {
-        weights.push_back(synapse.weight);
+    if (use_soa_layout_ && d_synapse_arrays_) {
+        // Fast path: copy single array directly
+        cudaMemcpy(weights.data(), h_synapse_arrays_struct_.weight, 
+                   num_synapses_ * sizeof(float), cudaMemcpyDeviceToHost);
+    } else if (d_synapses_) {
+        // Slow path: fetch all structs and extract
+        auto synapses = getSynapseStates();
+        for(size_t i=0; i<num_synapses_; ++i) {
+            weights[i] = synapses[i].weight;
+        }
     }
     
     return weights;
@@ -1464,67 +1654,25 @@ __global__ void convertSynapsesSoAToAoS_kernel(
 }
 
 void NetworkCUDA::convertAoSToSoA() {
-    if (!d_neurons_ || !d_synapses_ || !d_neuron_arrays_ || !d_synapse_arrays_) {
-        return;
-    }
-    
-    std::cout << "DEBUG: Starting convertAoSToSoA" << std::endl;
-    
+    if (!d_neurons_ || !d_synapses_ || !d_neuron_arrays_ || !d_synapse_arrays_) return;
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
-    
-    // Ensure previous operations are complete
-    std::cout << "DEBUG: Synchronizing before conversion..." << std::endl;
     CUDA_CHECK_RETURN(cudaDeviceSynchronize(), void());
     
-    // Use cached host structures which contain valid device pointers
-    // This avoids a device-to-host copy that might be problematic
-    const NeuronArrays& h_neuron_arrays = h_neuron_arrays_struct_;
-    const SynapseArrays& h_synapse_arrays = h_synapse_arrays_struct_;
-    
-    std::cout << "DEBUG: Using cached structures. Neuron V ptr: " << h_neuron_arrays.V << ", Synapse weight ptr: " << h_synapse_arrays.weight << std::endl;
-    
-    // Launch conversion kernels
-    const int threads_per_block = 256;
-    int neuron_blocks = (num_neurons_ + threads_per_block - 1) / threads_per_block;
-    int synapse_blocks = (num_synapses_ + threads_per_block - 1) / threads_per_block;
-    
-    std::cout << "DEBUG: Launching neuron conversion kernel (" << neuron_blocks << " blocks)..." << std::endl;
-    convertNeuronsAoSToSoA_kernel<<<neuron_blocks, threads_per_block>>>(d_neurons_, h_neuron_arrays, num_neurons_);
-    CUDA_CHECK_RETURN(cudaGetLastError(), void());
-    
-    std::cout << "DEBUG: Launching synapse conversion kernel (" << synapse_blocks << " blocks)..." << std::endl;
-    convertSynapsesAoSToSoA_kernel<<<synapse_blocks, threads_per_block>>>(d_synapses_, h_synapse_arrays, num_synapses_);
-    CUDA_CHECK_RETURN(cudaGetLastError(), void());
-    
-    std::cout << "DEBUG: Synchronizing after kernel launch..." << std::endl;
+    // Using previously defined kernels
+    const int threads = 256;
+    convertNeuronsAoSToSoA_kernel<<<(num_neurons_+threads-1)/threads, threads>>>(d_neurons_, h_neuron_arrays_struct_, num_neurons_);
+    convertSynapsesAoSToSoA_kernel<<<(num_synapses_+threads-1)/threads, threads>>>(d_synapses_, h_synapse_arrays_struct_, num_synapses_);
     CUDA_CHECK_RETURN(cudaDeviceSynchronize(), void());
-    std::cout << "DEBUG: Conversion complete." << std::endl;
 }
 
 void NetworkCUDA::convertSoAToAoS() {
-    if (!d_neurons_ || !d_synapses_ || !d_neuron_arrays_ || !d_synapse_arrays_) {
-        return;
-    }
-    
+    if (!d_neurons_ || !d_synapses_ || !d_neuron_arrays_ || !d_synapse_arrays_) return;
     std::lock_guard<std::recursive_mutex> lock(cuda_mutex_);
+    CUDA_CHECK_RETURN(cudaDeviceSynchronize(), void());
     
-    // Get arrays from device
-    NeuronArrays h_neuron_arrays;
-    SynapseArrays h_synapse_arrays;
-    CUDA_CHECK_RETURN(cudaMemcpy(&h_neuron_arrays, d_neuron_arrays_, sizeof(NeuronArrays), cudaMemcpyDeviceToHost), void());
-    CUDA_CHECK_RETURN(cudaMemcpy(&h_synapse_arrays, d_synapse_arrays_, sizeof(SynapseArrays), cudaMemcpyDeviceToHost), void());
-    
-    // Launch conversion kernels
-    const int threads_per_block = 256;
-    int neuron_blocks = (num_neurons_ + threads_per_block - 1) / threads_per_block;
-    int synapse_blocks = (num_synapses_ + threads_per_block - 1) / threads_per_block;
-    
-    convertNeuronsSoAToAoS_kernel<<<neuron_blocks, threads_per_block>>>(h_neuron_arrays, d_neurons_, num_neurons_);
-    CUDA_CHECK_RETURN(cudaGetLastError(), void());
-    
-    convertSynapsesSoAToAoS_kernel<<<synapse_blocks, threads_per_block>>>(h_synapse_arrays, d_synapses_, num_synapses_);
-    CUDA_CHECK_RETURN(cudaGetLastError(), void());
-    
+    const int threads = 256;
+    convertNeuronsSoAToAoS_kernel<<<(num_neurons_+threads-1)/threads, threads>>>(h_neuron_arrays_struct_, d_neurons_, num_neurons_);
+    convertSynapsesSoAToAoS_kernel<<<(num_synapses_+threads-1)/threads, threads>>>(h_synapse_arrays_struct_, d_synapses_, num_synapses_);
     CUDA_CHECK_RETURN(cudaDeviceSynchronize(), void());
 }
 

@@ -1,4 +1,4 @@
-#include "modules/CorticalModule.h"
+#include <modules/CorticalModule.h>
 #include "engine/NetworkConfig.h"
 #include "engine/NeuralEngine.h"
 #include <cuda_runtime.h>
@@ -75,11 +75,36 @@ void CorticalModule::receiveInput(const std::vector<float>& input_vector) {
 }
 
 void CorticalModule::update(float dt_ms, float reward_signal) {
-    // Apply neuromodulation effect on reward signal
-    float modulated_reward = reward_signal * (1.0f + current_dopamine_ * config_.modulation.dopamine_sensitivity);
+    // Determine effective reward signal based on learning mode
+    float effective_reward = reward_signal;
+    
+    if (config_.enable_plasticity) {
+        switch (config_.learning_mode) {
+            case neurogen::LearningMode::PURE_STDP:
+                // CRITICAL: Force reward to zero for pure STDP regions
+                effective_reward = 0.0f;
+                break;
+                
+            case neurogen::LearningMode::REWARD_MODULATED_STDP:
+                // Use reward as-is, scaled by sensitivity
+                effective_reward = reward_signal * config_.learning_params.reward_sensitivity;
+                break;
+                
+            case neurogen::LearningMode::MIXED_STDP:
+                // Scale reward for mixed mode
+                effective_reward = reward_signal * config_.learning_params.reward_sensitivity;
+                break;
+        }
+    } else {
+        // Plasticity disabled: no reward signal
+        effective_reward = 0.0f;
+    }
+    
+    // Apply neuromodulation effect on effective reward signal
+    float modulated_reward = effective_reward * (1.0f + current_dopamine_ * config_.modulation.dopamine_sensitivity);
     
     // Step the physics of the neurons
-    // Note: NeuralEngine::update takes (dt, reward)
+    // NeuralEngine::update handles both neural dynamics and plasticity
     neural_engine_->update(dt_ms, modulated_reward);
     
     // Decay neuromodulators gradually
@@ -92,11 +117,8 @@ const std::vector<float>& CorticalModule::getOutputState() const {
     return cached_output_state_;
 }
 
-void CorticalModule::setPlasticity(bool enabled) {
-    // This would need a method in NeuralEngine to enable/disable learning
-    // For Phase 1, we rely on the engine's internal configuration
-    (void)enabled; // Suppress unused parameter warning
-}
+
+
 
 void CorticalModule::modulate(float dopamine, float serotonin) {
     // Apply neuromodulatory signals with sensitivity scaling

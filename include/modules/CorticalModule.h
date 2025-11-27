@@ -4,6 +4,7 @@
 #include <memory>
 #include "engine/GPUNeuralStructures.h"
 #include "engine/NeuralEngine.h"
+#include "modules/LearningMode.h"
 
 // Forward declaration ensuring namespace validity
 namespace neurogen {
@@ -29,6 +30,44 @@ public:
         int num_inputs = 0;
         int num_outputs = 0;
         ModulationParams modulation;
+
+        neurogen::LearningMode learning_mode = neurogen::LearningMode::PURE_STDP;
+        neurogen::LearningModeParams learning_params;
+        
+        // Override flag: if true, reward_modulation is forced to match learning_mode
+        bool enforce_learning_mode = true;
+        
+        /**
+        * @brief Configure for pure unsupervised STDP (sensory/memory regions)
+        */
+        void configurePureSTDP() {
+            learning_mode = neurogen::LearningMode::PURE_STDP;
+            learning_params.mode = neurogen::LearningMode::PURE_STDP;
+            learning_params.reward_sensitivity = 0.0f;  // Completely ignore reward
+            enforce_learning_mode = true;
+        }
+        
+        /**
+        * @brief Configure for reward-modulated learning (action/control regions)
+        */
+        void configureRewardModulated(float sensitivity = 1.0f) {
+            learning_mode = neurogen::LearningMode::REWARD_MODULATED_STDP;
+            learning_params.mode = neurogen::LearningMode::REWARD_MODULATED_STDP;
+            learning_params.reward_sensitivity = sensitivity;
+            enforce_learning_mode = true;
+        }
+        
+        /**
+        * @brief Configure for mixed learning (executive function regions)
+        */
+        void configureMixedSTDP(float unsupervised_ratio = 0.3f) {
+            learning_mode = neurogen::LearningMode::MIXED_STDP;
+            learning_params.mode = neurogen::LearningMode::MIXED_STDP;
+            learning_params.unsupervised_weight = unsupervised_ratio;
+            learning_params.supervised_weight = 1.0f - unsupervised_ratio;
+            learning_params.reward_sensitivity = 0.5f;
+            enforce_learning_mode = true;
+        }
     };
 
     CorticalModule(const Config& config, int gpu_device_id);
