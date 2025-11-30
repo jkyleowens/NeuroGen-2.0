@@ -105,6 +105,20 @@ public:
     int getVocabSize() const { return config_.vocab_size; }
 
     /**
+     * @brief Update a single token's embedding (for pre-training)
+     * @param token_id Token ID to update
+     * @param new_embedding New embedding vector
+     */
+    void updateEmbedding(int token_id, const std::vector<float>& new_embedding);
+
+    /**
+     * @brief Get a copy of a single embedding vector
+     * @param token_id Token ID
+     * @return Embedding vector (unnormalized)
+     */
+    std::vector<float> getEmbedding(int token_id) const;
+
+    /**
      * @brief Normalize embedding vector
      */
     static std::vector<float> normalize(const std::vector<float>& embedding);

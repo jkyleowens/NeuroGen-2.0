@@ -33,6 +33,18 @@
 // ============================================================================
 
 /**
+ * @brief Add bias to logits (element-wise)
+ */
+__global__ void addBiasKernel(float* __restrict__ logits,
+                              const float* __restrict__ bias,
+                              int vocab_size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < vocab_size) {
+        logits[idx] += bias[idx];
+    }
+}
+
+/**
  * @brief Softmax kernel with numerical stability
  * Uses shared memory for reduction and prevents overflow
  */
@@ -306,21 +318,51 @@ void GPUDecoder::cleanupGPU() {
 }
 
 void GPUDecoder::initializeProjectionMatrix() {
-    // Initialize with Xavier/Glorot initialization
+    // Initialize with improved initialization for sparse binary inputs
+    // 
+    // Problem: Standard Xavier assumes Gaussian inputs with unit variance.
+    // Our Broca output is SPARSE BINARY (0/1) with ~10% active neurons.
+    // 
+    // With ~10% sparsity (820 active out of 8192), the expected input sum is:
+    //   E[sum] = 0.1 * 8192 = 819.2
+    // 
+    // To get meaningful logit variance, we need larger weights.
+    // We use a scale that produces logits with std ~2-3 for good softmax spread.
+    
     size_t matrix_size = static_cast<size_t>(config_.vocab_size) * config_.output_dim;
     std::vector<float> h_matrix(matrix_size);
     
-    float scale = sqrtf(2.0f / (config_.vocab_size + config_.output_dim));
+    // Use a proper random number generator
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    
+    // Scale for sparse binary inputs:
+    // With ~10% sparsity, each logit = sum of ~820 weights
+    // We want std(logit) ≈ 2-3 for good softmax discrimination
+    // std(logit) = sqrt(820) * std(weight) ≈ 28.6 * std(weight)
+    // So std(weight) ≈ 0.1 gives std(logit) ≈ 2.86
+    float weight_std = 0.1f;
+    std::normal_distribution<float> dist(0.0f, weight_std);
+    
     for (size_t i = 0; i < matrix_size; ++i) {
-        h_matrix[i] = scale * (2.0f * (rand() / (float)RAND_MAX) - 1.0f);
+        h_matrix[i] = dist(gen);
     }
     
     // Copy to GPU
     CUDA_CHECK(cudaMemcpy(d_projection_matrix_, h_matrix.data(), 
                           matrix_size * sizeof(float), cudaMemcpyHostToDevice));
     
-    // Initialize bias to zero
-    CUDA_CHECK(cudaMemset(d_projection_bias_, 0, config_.vocab_size * sizeof(float)));
+    // Initialize bias to small values to break symmetry
+    std::vector<float> h_bias(config_.vocab_size);
+    std::normal_distribution<float> bias_dist(0.0f, 0.01f);
+    for (int i = 0; i < config_.vocab_size; ++i) {
+        h_bias[i] = bias_dist(gen);
+    }
+    CUDA_CHECK(cudaMemcpy(d_projection_bias_, h_bias.data(),
+                          config_.vocab_size * sizeof(float), cudaMemcpyHostToDevice));
+    
+    std::cout << "✓ Projection matrix initialized for sparse binary inputs" << std::endl;
+    std::cout << "   Weight std: " << weight_std << " (expected logit std: ~2.9)" << std::endl;
 }
 
 void GPUDecoder::projectToLogitsGPU(const float* d_input, float* d_output) {
@@ -348,9 +390,13 @@ void GPUDecoder::projectToLogitsGPU(const float* d_input, float* d_output) {
         1                                // incy
     ));
     
-    // Add bias (simple element-wise addition)
-    // For now, bias is zero, so we skip this
-    // In a full implementation, we'd launch a kernel here
+    // Add bias
+    int block_size = 256;
+    int num_blocks = (config_.vocab_size + block_size - 1) / block_size;
+    addBiasKernel<<<num_blocks, block_size, 0, stream_>>>(
+        d_output, d_projection_bias_, config_.vocab_size
+    );
+    CUDA_CHECK(cudaStreamSynchronize(stream_));
 }
 
 void GPUDecoder::softmaxGPU(const float* d_logits, float* d_probs) {
@@ -538,6 +584,117 @@ std::string GPUDecoder::decodeToString(const std::vector<float>& neural_output) 
     return std::to_string(token_id);
 }
 
+/**
+ * @brief CUDA kernel for computing gradient and updating projection matrix
+ * 
+ * For cross-entropy loss with softmax, the gradient w.r.t. logits is:
+ *   dL/d_logits = probs - one_hot(target)
+ * 
+ * The gradient w.r.t. projection matrix W is:
+ *   dL/dW[i,j] = (probs[i] - one_hot[i]) * input[j]
+ * 
+ * This kernel updates W[i,j] -= lr * dL/dW[i,j] for one row
+ */
+__global__ void updateProjectionMatrixKernel(
+    float* __restrict__ W,           // [vocab_size, output_dim]
+    const float* __restrict__ input, // [output_dim]
+    const float* __restrict__ probs, // [vocab_size]
+    int target_token,                // Target token index
+    int vocab_size,
+    int output_dim,
+    float learning_rate,
+    int col_offset                   // For handling large output_dim
+) {
+    // Each thread handles one (row, col) pair
+    int row = blockIdx.x;  // vocab token index
+    int col = threadIdx.x + col_offset; // input dimension index
+    
+    if (row >= vocab_size || col >= output_dim) return;
+    
+    // Gradient for this token: prob - (1 if target else 0)
+    float grad_logit = probs[row] - (row == target_token ? 1.0f : 0.0f);
+    
+    // Gradient for W[row, col] = grad_logit * input[col]
+    float grad_W = grad_logit * input[col];
+    
+    // Apply gradient with learning rate (SGD update)
+    int idx = row * output_dim + col;
+    W[idx] -= learning_rate * grad_W;
+}
+
+/**
+ * @brief Update bias vector: b -= lr * (probs - one_hot)
+ */
+__global__ void updateBiasKernel(
+    float* __restrict__ bias,        // [vocab_size]
+    const float* __restrict__ probs, // [vocab_size]
+    int target_token,
+    int vocab_size,
+    float learning_rate
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= vocab_size) return;
+    
+    float grad = probs[idx] - (idx == target_token ? 1.0f : 0.0f);
+    bias[idx] -= learning_rate * grad;
+}
+
+float GPUDecoder::trainStep(const std::vector<float>& neural_output, 
+                            int target_token_id,
+                            const std::vector<float>& predicted_probs) {
+    if (target_token_id < 0 || target_token_id >= config_.vocab_size) {
+        return 0.0f;  // Invalid target
+    }
+    
+    // Compute cross-entropy loss: -log(p[target])
+    const float eps = 1e-8f;
+    float loss = -std::log(std::max(predicted_probs[target_token_id], eps));
+    
+    // Copy input to GPU (handle size mismatch)
+    size_t input_size = std::min(neural_output.size(), static_cast<size_t>(config_.output_dim));
+    CUDA_CHECK(cudaMemsetAsync(d_neural_input_, 0, config_.output_dim * sizeof(float), stream_));
+    CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
+                               input_size * sizeof(float),
+                               cudaMemcpyHostToDevice, stream_));
+    
+    // Copy predicted probabilities to GPU
+    CUDA_CHECK(cudaMemcpyAsync(d_probabilities_, predicted_probs.data(),
+                               config_.vocab_size * sizeof(float),
+                               cudaMemcpyHostToDevice, stream_));
+    
+    CUDA_CHECK(cudaStreamSynchronize(stream_));
+    
+    // Update projection matrix in chunks (handles output_dim > 1024)
+    int num_blocks = config_.vocab_size;
+    for (int col_offset = 0; col_offset < config_.output_dim; col_offset += 1024) {
+        int chunk_size = std::min(1024, config_.output_dim - col_offset);
+        updateProjectionMatrixKernel<<<num_blocks, chunk_size, 0, stream_>>>(
+            d_projection_matrix_,
+            d_neural_input_,
+            d_probabilities_,
+            target_token_id,
+            config_.vocab_size,
+            config_.output_dim,
+            config_.learning_rate,
+            col_offset
+        );
+    }
+    
+    // Update bias
+    int bias_blocks = (config_.vocab_size + 255) / 256;
+    updateBiasKernel<<<bias_blocks, 256, 0, stream_>>>(
+        d_projection_bias_,
+        d_probabilities_,
+        target_token_id,
+        config_.vocab_size,
+        config_.learning_rate
+    );
+    
+    CUDA_CHECK(cudaStreamSynchronize(stream_));
+    
+    return loss;
+}
+
 void GPUDecoder::saveWeights(const std::string& filepath) {
     // Allocate host memory
     size_t matrix_size = config_.vocab_size * config_.output_dim;
@@ -621,5 +778,67 @@ void GPUDecoder::loadWeights(const std::string& filepath) {
                           config_.vocab_size * sizeof(float), cudaMemcpyHostToDevice));
     
     std::cout << "✓ Loaded decoder weights from " << filepath << std::endl;
+}
+
+std::vector<float> GPUDecoder::decodeToLogits(const std::vector<float>& neural_output) {
+    // Copy input to GPU
+    size_t input_size = std::min(neural_output.size(), static_cast<size_t>(config_.output_dim));
+    CUDA_CHECK(cudaMemcpyAsync(d_neural_input_, neural_output.data(),
+                               input_size * sizeof(float),
+                               cudaMemcpyHostToDevice, stream_));
+    
+    // Zero-pad if input is smaller than expected
+    if (input_size < static_cast<size_t>(config_.output_dim)) {
+        CUDA_CHECK(cudaMemsetAsync(d_neural_input_ + input_size, 0,
+                                   (config_.output_dim - input_size) * sizeof(float),
+                                   stream_));
+    }
+    
+    // Project to logits
+    projectToLogitsGPU(d_neural_input_, d_logits_);
+    
+    // Copy logits back to host
+    std::vector<float> logits(config_.vocab_size);
+    CUDA_CHECK(cudaMemcpy(logits.data(), d_logits_,
+                          config_.vocab_size * sizeof(float),
+                          cudaMemcpyDeviceToHost));
+    
+    return logits;
+}
+
+std::vector<float> GPUDecoder::getProjectionMatrix() {
+    size_t matrix_size = static_cast<size_t>(config_.vocab_size) * config_.output_dim;
+    std::vector<float> h_matrix(matrix_size);
+    CUDA_CHECK(cudaMemcpy(h_matrix.data(), d_projection_matrix_,
+                          matrix_size * sizeof(float), cudaMemcpyDeviceToHost));
+    return h_matrix;
+}
+
+void GPUDecoder::setProjectionMatrix(const std::vector<float>& matrix) {
+    size_t expected_size = static_cast<size_t>(config_.vocab_size) * config_.output_dim;
+    if (matrix.size() != expected_size) {
+        throw std::runtime_error("Projection matrix size mismatch: expected " +
+                                std::to_string(expected_size) + ", got " +
+                                std::to_string(matrix.size()));
+    }
+    CUDA_CHECK(cudaMemcpy(d_projection_matrix_, matrix.data(),
+                          matrix.size() * sizeof(float), cudaMemcpyHostToDevice));
+}
+
+std::vector<float> GPUDecoder::getProjectionBias() {
+    std::vector<float> h_bias(config_.vocab_size);
+    CUDA_CHECK(cudaMemcpy(h_bias.data(), d_projection_bias_,
+                          config_.vocab_size * sizeof(float), cudaMemcpyDeviceToHost));
+    return h_bias;
+}
+
+void GPUDecoder::setProjectionBias(const std::vector<float>& bias) {
+    if (static_cast<int>(bias.size()) != config_.vocab_size) {
+        throw std::runtime_error("Projection bias size mismatch: expected " +
+                                std::to_string(config_.vocab_size) + ", got " +
+                                std::to_string(bias.size()));
+    }
+    CUDA_CHECK(cudaMemcpy(d_projection_bias_, bias.data(),
+                          bias.size() * sizeof(float), cudaMemcpyHostToDevice));
 }
 

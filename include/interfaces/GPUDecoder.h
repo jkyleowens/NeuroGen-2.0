@@ -32,6 +32,7 @@ public:
         float top_p;             // Top-p parameter (default: 0.9)
         SamplingStrategy strategy; // Decoding strategy
         int gpu_device;          // GPU device ID
+        float learning_rate = 0.001f;  // Learning rate for projection matrix
     };
 
     GPUDecoder(const Config& config, std::shared_ptr<TokenEmbedding> embeddings);
@@ -73,6 +74,26 @@ public:
     std::pair<int, float> decodeAndSampleWithProb(const std::vector<float>& neural_output);
 
     /**
+     * @brief Train the projection matrix using cross-entropy loss
+     * @param neural_output The input to the decoder (Broca's output)
+     * @param target_token_id The correct target token
+     * @param predicted_probs The predicted probability distribution (from decode())
+     * @return The cross-entropy loss
+     * 
+     * This uses gradient descent to update the projection matrix:
+     * gradient = (probs - one_hot_target) * input^T
+     * W = W - lr * gradient
+     */
+    float trainStep(const std::vector<float>& neural_output, 
+                    int target_token_id,
+                    const std::vector<float>& predicted_probs);
+
+    /**
+     * @brief Set learning rate for projection matrix training
+     */
+    void setLearningRate(float lr) { config_.learning_rate = lr; }
+
+    /**
      * @brief Decode neural output to string token
      */
     std::string decodeToString(const std::vector<float>& neural_output);
@@ -101,6 +122,32 @@ public:
      * @brief Load projection matrix weights from file
      */
     void loadWeights(const std::string& filepath);
+
+    /**
+     * @brief Decode neural output to raw logits (before softmax)
+     * Useful for debugging and analysis
+     */
+    std::vector<float> decodeToLogits(const std::vector<float>& neural_output);
+
+    /**
+     * @brief Get projection matrix (host copy)
+     */
+    std::vector<float> getProjectionMatrix();
+
+    /**
+     * @brief Set projection matrix from host data
+     */
+    void setProjectionMatrix(const std::vector<float>& matrix);
+
+    /**
+     * @brief Get projection bias (host copy)
+     */
+    std::vector<float> getProjectionBias();
+
+    /**
+     * @brief Set projection bias from host data
+     */
+    void setProjectionBias(const std::vector<float>& bias);
 
 private:
     Config config_;

@@ -127,10 +127,10 @@ void NeuralEngine::update(float dt, float reward_signal) {
     neurogen::kernels::LIFParams lif_params;
     lif_params.alpha = 0.95f;
     lif_params.beta = 0.90f;
-    lif_params.delta = 1.0f;
-    lif_params.v_thresh = -50.0f;
+    lif_params.delta = 0.5f;      // REDUCED: Less adaptation buildup (was 1.0f)
+    lif_params.v_thresh = -55.0f; // LOWERED: Easier to spike (was -50.0f, needs only 10mV input now)
     lif_params.v_reset = -65.0f;
-    lif_params.k_winners = 25; // Top 10% of 256 block
+    lif_params.k_winners = 50;    // INCREASED: Allow more winners (was 25, now ~20% of 256)
     
     neurogen::kernels::launchLIFUpdate(
         network_state_.d_voltage,

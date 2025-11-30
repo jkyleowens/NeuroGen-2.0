@@ -291,3 +291,34 @@ float CorticalModule::getGatingSignal() const {
     // Sigmoid-like squashing or simple clamp
     return std::min(1.0f, avg * 10.0f); // *10 assuming sparse activity
 }
+
+/**
+ * Reset module state
+ * 
+ * Clears:
+ * - Working memory buffer
+ * - Previous input cache
+ * - Signal statistics (mean/variance)
+ * - Input/output buffers
+ * 
+ * Does NOT reset:
+ * - Neuron states (handled by NeuralEngine)
+ * - Synapse weights (preserved across sequences)
+ * - Neuromodulator levels (decay naturally)
+ */
+void CorticalModule::reset() {
+    // Clear buffers
+    std::fill(working_memory_.begin(), working_memory_.end(), 0.0f);
+    std::fill(previous_input_.begin(), previous_input_.end(), 0.0f);
+    input_buffer_.clear();
+    
+    // Reset output cache
+    std::fill(cached_output_state_.begin(), cached_output_state_.end(), 0.0f);
+    
+    // Reset signal statistics
+    signal_mean_ = 0.0f;
+    signal_variance_ = 0.0f;
+    
+    // Note: Neural engine state (neurons, synapses) is NOT reset
+    // This preserves learned weights while clearing temporal context
+}

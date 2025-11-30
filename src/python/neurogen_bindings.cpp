@@ -103,46 +103,59 @@ public:
     /**
      * Train on a single step (predict exactly ONE next token)
      * Uses GREEDY decoding for deterministic, measurable accuracy
-     * @param input_ids: List of input token IDs (context)
-     * @param target_ids: List of target token IDs (same length, but we only use last one)
+     * 
+     * The model's internal working memory (PFC, Hippocampus, pipeline state)
+     * maintains temporal context automatically between calls.
+     * 
+     * Training updates:
+     * 1. SNN weights via STDP + reward modulation
+     * 2. Decoder projection matrix via gradient descent
+     * 
+     * @param input_ids: List of input token IDs (full context sequence)
+     * @param target_ids: List of target token IDs (we use the last one)
      * @return: Tuple of (loss, accuracy, predicted_token_id)
      */
     std::tuple<float, float, int> train_step(
         const std::vector<int>& input_ids, 
         const std::vector<int>& target_ids) {
         
-        // Require non-empty input and at least one target token
         if (input_ids.empty() || target_ids.empty()) {
             throw std::runtime_error("Input and target must be non-empty");
         }
         
-        // We no longer require input_ids.size() == target_ids.size().
-        // Python now passes a full context sequence as input_ids and a
-        // single next-token target as target_ids[0]. We always use the
-        // last target token as the supervised label for this step.
-        
-        // 1) Run full context through embedding + brain
+        // Process each token in sequence through the brain
+        // Internal working memory accumulates context automatically
         for (size_t i = 0; i < input_ids.size(); ++i) {
             std::vector<float> embedded = embedding_->encodeById(input_ids[i]);
             brain_->cognitiveStep(embedded);
         }
 
-        // 2) Get final Broca output and decode with GREEDY strategy
-        //    (gpu_decoder_ uses GREEDY for deterministic training)
+        // Get output and decode to full probability distribution
         std::vector<float> brain_output = brain_->getBrocaOutput();
+        std::vector<float> probs = gpu_decoder_->decode(brain_output);
+        
+        // Sample token and get its probability
         auto token_and_prob = gpu_decoder_->decodeAndSampleWithProb(brain_output);
         int predicted_token = token_and_prob.first;
         float predicted_prob = token_and_prob.second;
 
         int target_token = target_ids.back();
 
+        // Compute loss
         const float eps = 1e-8f;
         float nll = -std::log(std::max(predicted_prob, eps));
         float loss = nll;
         float accuracy = (predicted_token == target_token) ? 1.0f : 0.0f;
 
-        float reward = -loss;
-        brain_->modulateGlobalState(reward, 0.5f, 0.5f);
+        // === CRITICAL: Train the decoder projection matrix ===
+        // This updates W to better map neural activations to correct tokens
+        gpu_decoder_->trainStep(brain_output, target_token, probs);
+
+        // Apply reward signal for SNN learning (STDP + neuromodulation)
+        // Use smaller reward magnitude to prevent weight explosion
+        float reward = accuracy > 0.5f ? 0.1f : -0.1f;
+        brain_->distributeReward(reward);
+        brain_->modulateGlobalState(reward * 0.5f, 0.3f, 0.3f);
 
         return std::make_tuple(loss, accuracy, predicted_token);
     }
@@ -258,6 +271,364 @@ public:
         return result;
     }
 
+    /**
+     * Get diagnostic info about neural activity and decoder
+     * Useful for debugging mode collapse and dead neurons
+     */
+    py::dict get_diagnostics() {
+        py::dict result;
+        
+        // Get Broca output
+        std::vector<float> broca_output = brain_->getBrocaOutput();
+        
+        // Compute sparsity and statistics
+        int active_count = 0;
+        float sum = 0.0f;
+        float max_val = -1e30f;
+        float min_val = 1e30f;
+        
+        for (float v : broca_output) {
+            if (v > 0.01f) active_count++;
+            sum += v;
+            max_val = std::max(max_val, v);
+            min_val = std::min(min_val, v);
+        }
+        
+        float sparsity = 1.0f - (float)active_count / broca_output.size();
+        float mean = sum / broca_output.size();
+        
+        result["broca_output_size"] = broca_output.size();
+        result["broca_active_neurons"] = active_count;
+        result["broca_sparsity"] = sparsity;
+        result["broca_mean"] = mean;
+        result["broca_max"] = max_val;
+        result["broca_min"] = min_val;
+        
+        // Get logit statistics from decoder
+        std::vector<float> logits = gpu_decoder_->decodeToLogits(broca_output);
+        
+        float logit_sum = 0.0f;
+        float logit_max = -1e30f;
+        float logit_min = 1e30f;
+        float logit_sq_sum = 0.0f;
+        
+        for (float l : logits) {
+            logit_sum += l;
+            logit_sq_sum += l * l;
+            logit_max = std::max(logit_max, l);
+            logit_min = std::min(logit_min, l);
+        }
+        
+        float logit_mean = logit_sum / logits.size();
+        float logit_var = logit_sq_sum / logits.size() - logit_mean * logit_mean;
+        float logit_std = std::sqrt(std::max(0.0f, logit_var));
+        
+        result["logit_mean"] = logit_mean;
+        result["logit_std"] = logit_std;
+        result["logit_max"] = logit_max;
+        result["logit_min"] = logit_min;
+        result["logit_range"] = logit_max - logit_min;
+        
+        // Get probability distribution statistics
+        std::vector<float> probs = gpu_decoder_->decode(broca_output);
+        
+        float prob_max = -1e30f;
+        float entropy = 0.0f;
+        int argmax = 0;
+        
+        for (size_t i = 0; i < probs.size(); ++i) {
+            if (probs[i] > prob_max) {
+                prob_max = probs[i];
+                argmax = i;
+            }
+            if (probs[i] > 1e-10f) {
+                entropy -= probs[i] * std::log(probs[i]);
+            }
+        }
+        
+        result["prob_max"] = prob_max;
+        result["prob_argmax"] = argmax;
+        result["entropy"] = entropy;
+        result["entropy_bits"] = entropy / std::log(2.0f);
+        result["max_entropy_bits"] = std::log2(static_cast<float>(vocab_size_));
+        
+        return result;
+    }
+
+    /**
+     * Set decoder learning rate
+     */
+    void set_decoder_learning_rate(float lr) {
+        gpu_decoder_->setLearningRate(lr);
+        std::cout << "📊 Decoder learning rate set to: " << lr << std::endl;
+    }
+
+    /**
+     * Pre-train decoder projection matrix with random Broca-like patterns
+     * This teaches the decoder to map sparse spike patterns to vocabulary
+     * 
+     * @param num_iterations Number of training iterations
+     * @param learning_rate Learning rate for SGD
+     * @return Average loss over training
+     */
+    float pretrain_decoder(int num_iterations, float learning_rate) {
+        std::cout << "\n🎯 Pre-training decoder projection matrix..." << std::endl;
+        std::cout << "   Iterations: " << num_iterations << std::endl;
+        std::cout << "   Learning rate: " << learning_rate << std::endl;
+        
+        // Set learning rate
+        gpu_decoder_->setLearningRate(learning_rate);
+        
+        float total_loss = 0.0f;
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> token_dist(0, vocab_size_ - 1);
+        std::uniform_real_distribution<float> spike_dist(0.0f, 1.0f);
+        
+        const int broca_dim = 8192;  // Broca output size
+        const float sparsity = 0.1f; // ~10% neurons active (biologically realistic)
+        
+        for (int iter = 0; iter < num_iterations; iter++) {
+            // Generate random target token
+            int target_token = token_dist(gen);
+            
+            // Generate random sparse Broca-like pattern
+            std::vector<float> broca_pattern(broca_dim, 0.0f);
+            for (int i = 0; i < broca_dim; i++) {
+                if (spike_dist(gen) < sparsity) {
+                    broca_pattern[i] = 1.0f; // Spike
+                }
+            }
+            
+            // Forward pass: get probabilities
+            std::vector<float> probs = gpu_decoder_->decode(broca_pattern);
+            
+            // Compute cross-entropy loss
+            const float eps = 1e-8f;
+            float loss = -std::log(std::max(probs[target_token], eps));
+            total_loss += loss;
+            
+            // Backward pass: update projection matrix
+            gpu_decoder_->trainStep(broca_pattern, target_token, probs);
+            
+            // Progress logging
+            if ((iter + 1) % 500 == 0 || iter == 0) {
+                float avg_loss = total_loss / (iter + 1);
+                std::cout << "   Iter " << (iter + 1) << "/" << num_iterations 
+                          << " - Loss: " << loss << " (avg: " << avg_loss << ")" << std::endl;
+            }
+        }
+        
+        float avg_loss = total_loss / num_iterations;
+        std::cout << "✅ Decoder pre-training complete - Final avg loss: " << avg_loss << std::endl;
+        
+        return avg_loss;
+    }
+
+    /**
+     * Pre-train token embeddings using Skip-gram style co-occurrence learning
+     * This teaches the encoder to group similar tokens together
+     * 
+     * @param token_sequences List of token ID sequences from the corpus
+     * @param window_size Context window size for co-occurrence
+     * @param learning_rate Learning rate for SGD
+     * @param negative_samples Number of negative samples per positive pair
+     * @return Average loss over training
+     */
+    float pretrain_embeddings(const std::vector<std::vector<int>>& token_sequences, 
+                               int window_size, 
+                               float learning_rate,
+                               int negative_samples) {
+        std::cout << "\n📚 Pre-training token embeddings..." << std::endl;
+        std::cout << "   Sequences: " << token_sequences.size() << std::endl;
+        std::cout << "   Window size: " << window_size << std::endl;
+        std::cout << "   Learning rate: " << learning_rate << std::endl;
+        std::cout << "   Negative samples: " << negative_samples << std::endl;
+        
+        if (token_sequences.empty()) {
+            std::cout << "⚠️  No sequences provided for embedding pre-training" << std::endl;
+            return 0.0f;
+        }
+        
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> token_dist(0, vocab_size_ - 1);
+        
+        float total_loss = 0.0f;
+        int num_updates = 0;
+        
+        // Process each sequence
+        for (size_t seq_idx = 0; seq_idx < token_sequences.size(); seq_idx++) {
+            const auto& sequence = token_sequences[seq_idx];
+            
+            // For each token in the sequence
+            for (size_t i = 0; i < sequence.size(); i++) {
+                int center_token = sequence[i];
+                if (center_token < 0 || center_token >= vocab_size_) continue;
+                
+                // Get center embedding
+                std::vector<float> center_emb = embedding_->getEmbedding(center_token);
+                
+                // Process context window
+                for (int offset = -window_size; offset <= window_size; offset++) {
+                    if (offset == 0) continue;
+                    
+                    int context_pos = static_cast<int>(i) + offset;
+                    if (context_pos < 0 || context_pos >= static_cast<int>(sequence.size())) {
+                        continue;
+                    }
+                    
+                    int context_token = sequence[context_pos];
+                    if (context_token < 0 || context_token >= vocab_size_) continue;
+                    
+                    // Get context embedding
+                    std::vector<float> context_emb = embedding_->getEmbedding(context_token);
+                    
+                    // === Positive pair: center and context should be similar ===
+                    // Compute dot product
+                    float dot = 0.0f;
+                    for (int d = 0; d < embedding_dim_; d++) {
+                        dot += center_emb[d] * context_emb[d];
+                    }
+                    
+                    // Sigmoid and loss
+                    float sigmoid_pos = 1.0f / (1.0f + std::exp(-dot));
+                    float loss_pos = -std::log(std::max(sigmoid_pos, 1e-8f));
+                    
+                    // Gradient for positive: (sigmoid - 1) * context_emb
+                    float grad_scale_pos = (sigmoid_pos - 1.0f) * learning_rate;
+                    
+                    // Update center embedding
+                    for (int d = 0; d < embedding_dim_; d++) {
+                        center_emb[d] -= grad_scale_pos * context_emb[d];
+                    }
+                    
+                    total_loss += loss_pos;
+                    
+                    // === Negative samples: center and random tokens should be dissimilar ===
+                    for (int neg = 0; neg < negative_samples; neg++) {
+                        int neg_token = token_dist(gen);
+                        if (neg_token == center_token || neg_token == context_token) continue;
+                        
+                        std::vector<float> neg_emb = embedding_->getEmbedding(neg_token);
+                        
+                        // Compute dot product
+                        float dot_neg = 0.0f;
+                        for (int d = 0; d < embedding_dim_; d++) {
+                            dot_neg += center_emb[d] * neg_emb[d];
+                        }
+                        
+                        // Sigmoid (we want this to be 0)
+                        float sigmoid_neg = 1.0f / (1.0f + std::exp(-dot_neg));
+                        float loss_neg = -std::log(std::max(1.0f - sigmoid_neg, 1e-8f));
+                        
+                        // Gradient for negative: sigmoid * neg_emb
+                        float grad_scale_neg = sigmoid_neg * learning_rate;
+                        
+                        // Update center embedding (push away from negative)
+                        for (int d = 0; d < embedding_dim_; d++) {
+                            center_emb[d] -= grad_scale_neg * neg_emb[d];
+                        }
+                        
+                        total_loss += loss_neg;
+                    }
+                    
+                    num_updates++;
+                }
+                
+                // Normalize and save updated center embedding
+                center_emb = TokenEmbedding::normalize(center_emb);
+                embedding_->updateEmbedding(center_token, center_emb);
+            }
+            
+            // Progress logging
+            if ((seq_idx + 1) % 100 == 0 || seq_idx == 0) {
+                float avg_loss = num_updates > 0 ? total_loss / num_updates : 0.0f;
+                std::cout << "   Sequence " << (seq_idx + 1) << "/" << token_sequences.size()
+                          << " - Avg loss: " << avg_loss << std::endl;
+            }
+        }
+        
+        float avg_loss = num_updates > 0 ? total_loss / num_updates : 0.0f;
+        std::cout << "✅ Embedding pre-training complete - Final avg loss: " << avg_loss << std::endl;
+        std::cout << "   Total updates: " << num_updates << std::endl;
+        
+        return avg_loss;
+    }
+
+    /**
+     * Run sensory pathway pre-training
+     * Train embeddings -> Thalamus -> Wernicke pathway to produce meaningful activations
+     * 
+     * @param token_sequences Token sequences from corpus
+     * @param num_epochs Number of training epochs
+     * @param learning_rate Learning rate
+     * @return Average loss
+     */
+    float pretrain_sensory_pathway(const std::vector<std::vector<int>>& token_sequences,
+                                    int num_epochs,
+                                    float learning_rate) {
+        std::cout << "\n🧠 Pre-training sensory pathway (Embeddings -> Thalamus -> Wernicke)..." << std::endl;
+        std::cout << "   Sequences: " << token_sequences.size() << std::endl;
+        std::cout << "   Epochs: " << num_epochs << std::endl;
+        
+        float total_loss = 0.0f;
+        int num_steps = 0;
+        
+        for (int epoch = 0; epoch < num_epochs; epoch++) {
+            float epoch_loss = 0.0f;
+            int epoch_steps = 0;
+            
+            for (const auto& sequence : token_sequences) {
+                // Reset brain state for each sequence
+                brain_->reset();
+                
+                for (size_t i = 0; i + 1 < sequence.size(); i++) {
+                    int input_token = sequence[i];
+                    int target_token = sequence[i + 1];
+                    
+                    if (input_token < 0 || input_token >= vocab_size_) continue;
+                    if (target_token < 0 || target_token >= vocab_size_) continue;
+                    
+                    // Get input embedding
+                    std::vector<float> input_emb = embedding_->encodeById(input_token);
+                    
+                    // Forward pass through brain
+                    brain_->cognitiveStep(input_emb);
+                    
+                    // Get Broca output and decode
+                    std::vector<float> broca_output = brain_->getBrocaOutput();
+                    std::vector<float> probs = gpu_decoder_->decode(broca_output);
+                    
+                    // Compute loss
+                    const float eps = 1e-8f;
+                    float loss = -std::log(std::max(probs[target_token], eps));
+                    epoch_loss += loss;
+                    total_loss += loss;
+                    
+                    // Train decoder
+                    gpu_decoder_->trainStep(broca_output, target_token, probs);
+                    
+                    // Apply small reward based on probability of correct token
+                    float reward = probs[target_token] - (1.0f / vocab_size_);
+                    brain_->distributeReward(reward * 0.1f);
+                    
+                    epoch_steps++;
+                    num_steps++;
+                }
+            }
+            
+            float avg_epoch_loss = epoch_steps > 0 ? epoch_loss / epoch_steps : 0.0f;
+            std::cout << "   Epoch " << (epoch + 1) << "/" << num_epochs 
+                      << " - Avg loss: " << avg_epoch_loss << std::endl;
+        }
+        
+        float avg_loss = num_steps > 0 ? total_loss / num_steps : 0.0f;
+        std::cout << "✅ Sensory pathway pre-training complete - Final avg loss: " << avg_loss << std::endl;
+        
+        return avg_loss;
+    }
+
 private:
     int vocab_size_;
     int embedding_dim_;
@@ -285,10 +656,12 @@ PYBIND11_MODULE(libneurogen, m) {
         .def("train_step", &NeuroGenModel::train_step,
              py::arg("input_ids"),
              py::arg("target_ids"),
-             "Train on a batch with next-token prediction (single-step)\n\n"
+             "Train on a sequence with recurrent processing\n\n"
+             "The model's internal working memory (PFC, Hippocampus, pipeline state)\n"
+             "maintains temporal context automatically between calls.\n\n"
              "Args:\n"
-             "    input_ids: List of input token IDs\n"
-             "    target_ids: List of target token IDs (same length as input_ids)\n\n"
+             "    input_ids: List of input token IDs (full context)\n"
+             "    target_ids: List of target token IDs (we use last one)\n\n"
              "Returns:\n"
              "    Tuple of (loss, accuracy, predicted_token_id)")
         .def("generate", &NeuroGenModel::generate,
@@ -309,7 +682,55 @@ PYBIND11_MODULE(libneurogen, m) {
         .def("get_statistics", &NeuroGenModel::get_statistics,
              "Get brain statistics\n\n"
              "Returns:\n"
-             "    Dictionary of brain statistics");
+             "    Dictionary of brain statistics")
+        .def("get_diagnostics", &NeuroGenModel::get_diagnostics,
+             "Get diagnostic information about neural activity and decoder\n\n"
+             "Returns:\n"
+             "    Dictionary with Broca output stats, logit stats, and probability stats")
+        .def("set_decoder_learning_rate", &NeuroGenModel::set_decoder_learning_rate,
+             py::arg("lr"),
+             "Set the decoder learning rate\n\n"
+             "Args:\n"
+             "    lr: Learning rate (default: 0.001)")
+        .def("pretrain_decoder", &NeuroGenModel::pretrain_decoder,
+             py::arg("num_iterations") = 5000,
+             py::arg("learning_rate") = 0.01f,
+             "Pre-train decoder projection matrix to map Broca patterns to vocabulary\n\n"
+             "This teaches the decoder to distinguish between different sparse spike patterns\n"
+             "and map them to different vocabulary tokens.\n\n"
+             "Args:\n"
+             "    num_iterations: Number of training iterations (default: 5000)\n"
+             "    learning_rate: Learning rate for SGD (default: 0.01)\n\n"
+             "Returns:\n"
+             "    Average loss over training")
+        .def("pretrain_embeddings", &NeuroGenModel::pretrain_embeddings,
+             py::arg("token_sequences"),
+             py::arg("window_size") = 5,
+             py::arg("learning_rate") = 0.01f,
+             py::arg("negative_samples") = 5,
+             "Pre-train token embeddings using Skip-gram style co-occurrence learning\n\n"
+             "This teaches the encoder to group semantically similar tokens together,\n"
+             "making it easier for the SNN to learn meaningful patterns.\n\n"
+             "Args:\n"
+             "    token_sequences: List of token ID sequences from the corpus\n"
+             "    window_size: Context window size (default: 5)\n"
+             "    learning_rate: Learning rate for SGD (default: 0.01)\n"
+             "    negative_samples: Number of negative samples per positive pair (default: 5)\n\n"
+             "Returns:\n"
+             "    Average loss over training")
+        .def("pretrain_sensory_pathway", &NeuroGenModel::pretrain_sensory_pathway,
+             py::arg("token_sequences"),
+             py::arg("num_epochs") = 1,
+             py::arg("learning_rate") = 0.001f,
+             "Pre-train sensory pathway (Embeddings -> Thalamus -> Wernicke -> Broca -> Decoder)\n\n"
+             "This trains the full pipeline end-to-end with next-token prediction,\n"
+             "establishing meaningful signal flow through the neural network.\n\n"
+             "Args:\n"
+             "    token_sequences: List of token ID sequences from the corpus\n"
+             "    num_epochs: Number of training epochs (default: 1)\n"
+             "    learning_rate: Learning rate (default: 0.001)\n\n"
+             "Returns:\n"
+             "    Average loss over training");
     
     // Version info
     m.attr("__version__") = "2.0.0";

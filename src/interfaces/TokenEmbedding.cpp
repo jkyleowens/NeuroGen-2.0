@@ -210,6 +210,26 @@ std::vector<float> TokenEmbedding::normalize(const std::vector<float>& embedding
     return normalized;
 }
 
+void TokenEmbedding::updateEmbedding(int token_id, const std::vector<float>& new_embedding) {
+    if (token_id < 0 || token_id >= static_cast<int>(embeddings_.size())) {
+        return;  // Invalid token ID
+    }
+    
+    if (new_embedding.size() != static_cast<size_t>(config_.embedding_dim)) {
+        std::cerr << "⚠️  Embedding dimension mismatch in updateEmbedding" << std::endl;
+        return;
+    }
+    
+    embeddings_[token_id] = new_embedding;
+}
+
+std::vector<float> TokenEmbedding::getEmbedding(int token_id) const {
+    if (token_id < 0 || token_id >= static_cast<int>(embeddings_.size())) {
+        return std::vector<float>(config_.embedding_dim, 0.0f);
+    }
+    return embeddings_[token_id];
+}
+
 std::vector<float> TokenEmbedding::randomEmbedding() {
     static std::random_device rd;
     static std::mt19937 gen(rd());

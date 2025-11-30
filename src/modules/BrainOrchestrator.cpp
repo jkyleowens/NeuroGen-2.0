@@ -9,14 +9,14 @@
 
 BrainOrchestrator::BrainOrchestrator(const Config& config)
     : config_(config),
+      should_generate_output_(false),
       current_phase_(CognitivePhase::SENSATION),
       phase_timer_(0.0f),
       total_time_(0.0f),
+      time_since_consolidation_(0.0f),
       cognitive_cycles_(0),
       tokens_processed_(0),
-      should_generate_output_(false),
       average_reward_(0.0f),
-      time_since_consolidation_(0.0f),
       processing_mode_(config.processing_mode) {
     
     std::cout << "🧠 Initializing Brain Orchestrator..." << std::endl;
@@ -98,15 +98,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "Hippocampus";
         config.num_neurons = 153600;  // 7.5x increase - much longer context memory
         config.enable_plasticity = true;
-        config.learning_rate = 0.005f;  // REDUCED: Still faster than cortical but controlled (was 0.15f)
+        config.learning_rate = 0.002f;  // REDUCED: More conservative (was 0.005f)
         config.fanout_per_neuron = 96;  // Increased connectivity for associations
         config.num_outputs = 8192;  // Scaled memory representations
         config.num_inputs = 8192;
         config.modulation.dopamine_sensitivity = 0.6f;
         config.modulation.serotonin_sensitivity = 0.2f;
-        config.modulation.inhibition_level = 0.15f;
-        config.modulation.attention_threshold = 0.15f;
-        config.modulation.excitability_bias = 1.3f;
+        config.modulation.inhibition_level = 0.1f;   // REDUCED: Allow more activity (was 0.15f)
+        config.modulation.attention_threshold = 0.1f; // REDUCED: Lower filtering (was 0.15f)
+        config.modulation.excitability_bias = 1.4f;  // INCREASED: More responsive (was 1.3f)
         
         hippocampus_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["Hippocampus"] = hippocampus_.get();
@@ -118,15 +118,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "PFC";
         config.num_neurons = 307200;  // 7.5x increase - massive reasoning capacity
         config.enable_plasticity = true;
-        config.learning_rate = 0.01f;  // Slow learning for stability
+        config.learning_rate = 0.001f;  // REDUCED: Prevent weight saturation (was 0.01f)
         config.fanout_per_neuron = 128;  // Very high connectivity for integration
         config.num_outputs = 10240;  // Scaled for complex representations
         config.num_inputs = 10240;
         config.modulation.dopamine_sensitivity = 0.5f;
         config.modulation.serotonin_sensitivity = 0.6f;
-        config.modulation.inhibition_level = 0.2f;
-        config.modulation.attention_threshold = 0.25f;
-        config.modulation.excitability_bias = 1.0f;
+        config.modulation.inhibition_level = 0.1f;  // REDUCED: Allow more activity (was 0.2f)
+        config.modulation.attention_threshold = 0.15f; // REDUCED: Lower filtering (was 0.25f)
+        config.modulation.excitability_bias = 1.2f;   // INCREASED: More responsive (was 1.0f)
         
         pfc_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["PFC"] = pfc_.get();
@@ -138,15 +138,15 @@ void BrainOrchestrator::initializeModules() {
         config.module_name = "BasalGanglia";
         config.num_neurons = 76800;  // 7.5x increase - sophisticated action selection
         config.enable_plasticity = true;
-        config.learning_rate = 0.002f;  // REDUCED: Controlled RL learning (was 0.08f)
+        config.learning_rate = 0.001f;  // REDUCED: Conservative learning (was 0.002f)
         config.fanout_per_neuron = 96;  // Increased connectivity
         config.num_outputs = 4096;  // Scaled decision space
         config.num_inputs = 4096;
         config.modulation.dopamine_sensitivity = 1.0f;  // Very sensitive to dopamine!
         config.modulation.serotonin_sensitivity = 0.3f;
-        config.modulation.inhibition_level = 0.3f;
-        config.modulation.attention_threshold = 0.2f;
-        config.modulation.excitability_bias = 1.1f;
+        config.modulation.inhibition_level = 0.15f;  // REDUCED: Allow more activity (was 0.3f)
+        config.modulation.attention_threshold = 0.15f; // REDUCED: Lower filtering (was 0.2f)
+        config.modulation.excitability_bias = 1.2f;   // INCREASED: More responsive (was 1.1f)
         
         basal_ganglia_ = std::make_unique<CorticalModule>(config, config_.gpu_device_id);
         module_map_["BasalGanglia"] = basal_ganglia_.get();
@@ -716,7 +716,7 @@ void BrainOrchestrator::reset() {
     should_generate_output_ = false;
     time_since_consolidation_ = 0.0f;
     
-    std::cout << "🔄 Brain Orchestrator reset complete" << std::endl;
+    // Note: Removed verbose logging - reset is called frequently during pre-training
 }
 
 std::vector<float> BrainOrchestrator::getBrocaOutput() {
@@ -761,6 +761,8 @@ std::vector<float> BrainOrchestrator::pipelinedCognitiveStep(
     const std::vector<float>& input_embedding,
     int target_token_id,
     GPUDecoder* decoder) {
+    (void)target_token_id;  // Unused in pipelined mode
+    (void)decoder;          // Unused in pipelined mode
     std::vector<float> output;
     
     // STAGE 1: Fast Input Encoding (50ms equivalent)
@@ -797,6 +799,8 @@ std::vector<float> BrainOrchestrator::pipelinedCognitiveStep(
 }
 
 void BrainOrchestrator::fastInputEncoding(const std::vector<float>& input, const std::vector<float>& prediction) {
+    (void)prediction;  // Reserved for future predictive coding implementation
+    
     // Thalamus receives and gates input
     thalamus_->receiveInput(input);
     

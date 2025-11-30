@@ -77,6 +77,9 @@ class TrainingConfig:
     tokens_per_chunk: int = 4096
     max_chunks: Optional[int] = None  # None = train on full dataset
     
+    # Pre-trained weights (optional - load from pretrain_encoder_decoder.py output)
+    pretrained_checkpoint: Optional[str] = None  # Path to pre-trained encoder/decoder weights
+    
     # Checkpoint parameters
     checkpoint_dir: str = "checkpoints"
     save_checkpoint: bool = True  # Enable/disable checkpoint saving
@@ -94,14 +97,11 @@ class TrainingConfig:
     viz_dir: str = "training_viz"
     viz_interval: int = 5  # Generate charts every 5 steps
     save_samples_every: int = 1  # Save text samples every step
+    viz_interval_chunks: int = 5  # Generate graphs every N chunks
     
     # Tokenizer
     tokenizer_dir: str = "tokenizer"
     tokenizer_model: str = "nlp_agent_tokenizer.model"
-
-    # Visualization
-    viz_dir: str = "training_viz"
-    viz_interval_chunks: int = 5  # Generate graphs every N chunks
 
 
 class VisualizationManager:
@@ -376,6 +376,24 @@ class SlimPajamaTrainer:
                 print("⚠️  Warning: libneurogen.so not found. Training loop will simulate data processing only.")
                 self.model = None
 
+        # Load pre-trained encoder/decoder weights if specified
+        if config.pretrained_checkpoint and self.model:
+            self.load_pretrained_weights(config.pretrained_checkpoint)
+
+    def load_pretrained_weights(self, checkpoint_path: str):
+        """Load pre-trained encoder/decoder weights from a checkpoint.
+        
+        Args:
+            checkpoint_path: Path to pre-trained checkpoint (from pretrain_encoder_decoder.py)
+        """
+        print(f"\n📂 Loading pre-trained weights from: {checkpoint_path}")
+        try:
+            self.model.load_checkpoint(checkpoint_path)
+            print("✅ Pre-trained weights loaded successfully")
+        except Exception as e:
+            print(f"⚠️  Failed to load pre-trained weights: {e}")
+            print("   Continuing with random initialization...")
+
     def tokenize_text(self, text: str) -> Tuple[List[int], int]:
         """Tokenize text and select a context prefix and its literal next token.
 
@@ -436,6 +454,8 @@ class SlimPajamaTrainer:
 
             if self.model:
                 # Train on this exact (context, next-token) pair.
+                # The model's internal working memory (PFC, Hippocampus) maintains
+                # temporal context automatically via pipeline state.
                 # Wrap target_id in a single-element list to satisfy the C++ signature.
                 loss, accuracy, predicted_token_id = self.model.train_step(context_ids, [target_id])
             else:
@@ -486,6 +506,11 @@ class SlimPajamaTrainer:
         print(f"   Streaming mode: {self.config.streaming}")
         print(f"   Tokens per chunk: {self.config.tokens_per_chunk}")
         print(f"   Max sequence length: {self.config.max_seq_length}")
+        
+        if self.config.pretrained_checkpoint:
+            print(f"   Pre-trained weights: ✓ Loaded from {self.config.pretrained_checkpoint}")
+        else:
+            print("   Pre-trained weights: ✗ Not loaded (use --pretrained-checkpoint to load)")
         
         try:
             print("\n⏳ Loading dataset (this may take 1-2 minutes for initial download)...")
@@ -621,6 +646,11 @@ def main():
     parser.add_argument("--test", action="store_true", help="Quick test mode (5 chunks, 1024 tokens each)")
     parser.add_argument("--verbose", action="store_true", default=True, help="Verbose logging")
     parser.add_argument("--no-checkpoint", action="store_true", help="Disable checkpoint saving (for faster testing)")
+    
+    # Pre-trained weights (from pretrain_encoder_decoder.py)
+    parser.add_argument("--pretrained-checkpoint", type=str, default=None, 
+                        help="Path to pre-trained encoder/decoder checkpoint (from pretrain_encoder_decoder.py)")
+    
     args = parser.parse_args()
     
     # Configure based on mode
@@ -632,7 +662,8 @@ def main():
             max_chunks=5,  # Only 5 chunks
             max_seq_length=256,  # Shorter sequences
             verbose_logging=True,
-            save_checkpoint=not args.no_checkpoint
+            save_checkpoint=not args.no_checkpoint,
+            pretrained_checkpoint=args.pretrained_checkpoint
         )
     else:
         config = TrainingConfig(
@@ -641,7 +672,8 @@ def main():
             max_chunks=args.max_chunks,
             max_seq_length=args.max_seq_length,
             verbose_logging=args.verbose,
-            save_checkpoint=not args.no_checkpoint
+            save_checkpoint=not args.no_checkpoint,
+            pretrained_checkpoint=args.pretrained_checkpoint
         )
     
     print("\n" + "="*80)
@@ -654,6 +686,7 @@ def main():
     print(f"  Max chunks: {config.max_chunks if config.max_chunks else 'unlimited'}")
     print(f"  Vocab size: {config.vocab_size}")
     print(f"  Save checkpoints: {'✓ Enabled' if config.save_checkpoint else '✗ Disabled'}")
+    print(f"  Pre-trained checkpoint: {config.pretrained_checkpoint if config.pretrained_checkpoint else '✗ None (random init)'}")
     print("="*80 + "\n")
     
     trainer = None

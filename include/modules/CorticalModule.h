@@ -102,6 +102,9 @@ public:
     void setWorkingMemory(const std::vector<float>& memory_state);
     std::vector<float> getWorkingMemory() const;
     void applyTopDownBias(float bias_strength);
+    
+    // Reset module state (clear working memory, reset statistics)
+    void reset();
 
     std::string getName() const { return config_.module_name; }
     const Config& getConfig() const { return config_; }

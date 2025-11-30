@@ -31,6 +31,11 @@ ENGINE_SRCS = src/engine/NeuralEngine.cu \
               src/engine/kernels/LIF_Update.cu \
               src/engine/kernels/SpMV_Input.cu
 
+# Cortical Column Architecture (V2)
+CORTICAL_SRCS = src/engine/CorticalColumnV2.cu \
+                src/engine/ConnectivityGenerator.cu \
+                src/engine/ALIFNeuron.cu
+
 # Modules
 MODULE_SRCS = src/modules/CorticalModule.cu \
               src/modules/InterModuleConnection.cpp \
@@ -81,6 +86,9 @@ LINK_OBJS = src/engine/NeuralEngine.o \
             src/engine/SparseMatrix.o \
             src/engine/kernels/LIF_Update.o \
             src/engine/kernels/SpMV_Input.o \
+            src/engine/CorticalColumnV2.o \
+            src/engine/ConnectivityGenerator.o \
+            src/engine/ALIFNeuron.o \
             src/modules/CorticalModule.o \
             src/modules/InterModuleConnection.o \
             src/modules/BrainOrchestrator.o \
@@ -121,6 +129,12 @@ src/python/neurogen_bindings.o: src/python/neurogen_bindings.cpp
 clean:
 	rm -f $(TARGET) $(PYTHON_MODULE)
 	rm -f src/engine/*.o src/engine/kernels/*.o src/modules/*.o src/persistence/*.o src/interfaces/*.o src/python/*.o src/*.o
+	rm -f test_cortical_column
+
+# Test cortical column architecture
+test_cortical: src/engine/test_cortical_column.o src/engine/CorticalColumnV2.o src/engine/ConnectivityGenerator.o src/engine/ALIFNeuron.o
+	$(CXX) $(CXX_FLAGS) -o test_cortical_column $^ -L$(CUDA_PATH)/lib64 $(LIBS)
+	@echo "Run with: ./test_cortical_column"
 
 run: $(TARGET)
 	./$(TARGET)
@@ -128,4 +142,4 @@ run: $(TARGET)
 train: $(PYTHON_MODULE)
 	python3 train_slimpajama.py
 
-.PHONY: all clean run train python_bindings
+.PHONY: all clean run train python_bindings test_cortical
