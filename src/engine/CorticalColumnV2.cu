@@ -1,19 +1,21 @@
 /**
  * @file CorticalColumnV2.cu
  * @brief Implementation of Cortical Column Architecture
- * 
+ *
  * This file implements the CorticalColumnV2 class, providing:
  * - 6-layer cortical column with biological connectivity
  * - ALIF neurons with compartmental processing
  * - Sparse synaptic propagation (CSR/BSR)
  * - STDP learning with eligibility traces
  * - Homeostatic plasticity
- * 
- * @version 2.0-Cortical
- * @date November 29, 2025
+ * - Biology-First: Dale's Law and topographic connectivity
+ *
+ * @version 2.0-Biology-First
+ * @date December 30, 2025
  */
 
 #include "engine/CorticalColumnV2.h"
+#include "engine/BioConstants.h"
 #include "engine/ALIFKernels.cuh"
 #include "engine/SparseKernels.cuh"
 #include "engine/STDPKernels.cuh"
@@ -24,6 +26,11 @@
 #include <cstring>
 #include <cmath>
 #include <algorithm>
+
+// Forward declare BioConnectivityGenerator
+namespace neurogen {
+    class BioConnectivityGenerator;
+}
 
 namespace neurogen {
 namespace cortical {
@@ -289,55 +296,83 @@ cudaError_t CorticalColumnV2::generateConnectivity() {
 }
 
 cudaError_t CorticalColumnV2::generateConnectivityForLayer(int layer) {
-    // Use connectivity generation kernels from SparseKernels.cuh
-    // This is a simplified version - real implementation would use GPU
-    
+    // BIOLOGY-FIRST: Use topographic connectivity with Dale's Law
+    // This replaces random connectivity with biologically-realistic patterns
+
     CSRSynapseMatrix& syn = intra_layer_synapses_[layer];
     int n = neurons_per_layer_[layer];
-    float density = layer_params_[layer].connectivity_density;
-    
-    // For now, generate on CPU and upload
-    // In production, use the GPU kernels
-    std::vector<int> row_ptr(n + 1);
+
+    // Calculate layer dimensions for topographic mapping
+    // Approximate square grid for simplicity
+    int width = static_cast<int>(std::sqrt(static_cast<float>(n)));
+    int height = (n + width - 1) / width;
+
+    std::cout << "🧬 Generating biological connectivity for layer " << layer
+              << " (" << n << " neurons, " << width << "x" << height << " grid)" << std::endl;
+
+    // Use BioConnectivityGenerator for topographic wiring with Dale's Law
+    std::vector<int> row_ptr;
     std::vector<int> col_idx;
     std::vector<float> weights;
-    
-    row_ptr[0] = 0;
-    for (int i = 0; i < n; ++i) {
-        for (int j = 0; j < n; ++j) {
-            if (i != j && (float)rand() / RAND_MAX < density) {
-                col_idx.push_back(j);
-                // Initialize weight with normal distribution around 0.1
-                float w = 0.1f + 0.02f * ((float)rand() / RAND_MAX - 0.5f);
-                weights.push_back(std::max(0.0f, std::min(1.0f, w)));
+
+    // External function call (defined in BioConnectivityGenerator.cu)
+    // This will be linked during compilation
+    extern void generateCorticalWiring(
+        std::vector<int>& row_ptr,
+        std::vector<int>& col_ind,
+        std::vector<float>& values,
+        int num_neurons,
+        int width, int height
+    );
+
+    // Generate biological connectivity
+    try {
+        generateCorticalWiring(row_ptr, col_idx, weights, n, width, height);
+    } catch (...) {
+        std::cerr << "⚠️  BioConnectivityGenerator not available, using fallback" << std::endl;
+
+        // Fallback to original random connectivity if biological generator fails
+        float density = layer_params_[layer].connectivity_density;
+        row_ptr.clear();
+        col_idx.clear();
+        weights.clear();
+
+        row_ptr.push_back(0);
+        for (int i = 0; i < n; ++i) {
+            for (int j = 0; j < n; ++j) {
+                if (i != j && (float)rand() / RAND_MAX < density) {
+                    col_idx.push_back(j);
+                    float w = 0.1f + 0.02f * ((float)rand() / RAND_MAX - 0.5f);
+                    weights.push_back(std::max(0.0f, std::min(1.0f, w)));
+                }
             }
+            row_ptr[i + 1] = col_idx.size();
         }
-        row_ptr[i + 1] = col_idx.size();
     }
-    
+
     // Reallocate to actual size
     syn.nnz = col_idx.size();
-    
+
     // Upload to GPU
     cudaError_t err;
     err = cudaMemcpy(syn.d_row_ptr, row_ptr.data(), (n + 1) * sizeof(int), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) return err;
-    
+
     err = cudaMemcpy(syn.d_col_idx, col_idx.data(), syn.nnz * sizeof(int), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) return err;
-    
+
     err = cudaMemcpy(syn.d_weights, weights.data(), syn.nnz * sizeof(float), cudaMemcpyHostToDevice);
     if (err != cudaSuccess) return err;
-    
+
     // Initialize eligibility traces to zero
     err = cudaMemset(syn.d_eligibility, 0, syn.nnz * sizeof(float));
     if (err != cudaSuccess) return err;
-    
+
     err = cudaMemset(syn.d_pre_trace, 0, syn.num_pre * sizeof(float));
     if (err != cudaSuccess) return err;
-    
+
     err = cudaMemset(syn.d_post_trace, 0, syn.num_post * sizeof(float));
-    
+
     return err;
 }
 

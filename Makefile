@@ -34,7 +34,9 @@ ENGINE_SRCS = src/engine/NeuralEngine.cu \
 # Cortical Column Architecture (V2)
 CORTICAL_SRCS = src/engine/CorticalColumnV2.cu \
                 src/engine/ConnectivityGenerator.cu \
-                src/engine/ALIFNeuron.cu
+                src/engine/ALIFNeuron.cu \
+                src/engine/BioConnectivityGenerator.cu \
+                src/engine/HebbianLearningKernel_Bio.cu
 
 # Modules
 MODULE_SRCS = src/modules/CorticalModule.cu \
@@ -89,6 +91,8 @@ LINK_OBJS = src/engine/NeuralEngine.o \
             src/engine/CorticalColumnV2.o \
             src/engine/ConnectivityGenerator.o \
             src/engine/ALIFNeuron.o \
+            src/engine/BioConnectivityGenerator.o \
+            src/engine/HebbianLearningKernel_Bio.o \
             src/modules/CorticalModule.o \
             src/modules/InterModuleConnection.o \
             src/modules/BrainOrchestrator.o \

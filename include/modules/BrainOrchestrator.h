@@ -16,7 +16,8 @@ class BrainOrchestrator {
 public:
     enum class ProcessingMode {
         SEQUENTIAL,
-        PIPELINED
+        PIPELINED,
+        BIOLOGICAL_SYNC  // Tick-tock synchronous execution for gamma oscillations
     };
 
     struct Config {
@@ -63,6 +64,13 @@ public:
 
     // Pipelined cognitive step
     std::vector<float> pipelinedCognitiveStep(
+        const std::vector<float>& input_embedding,
+        int target_token_id = -1,
+        GPUDecoder* decoder = nullptr
+    );
+
+    // Biological synchronous step (Tick-Tock)
+    std::vector<float> biologicalSynchronousStep(
         const std::vector<float>& input_embedding,
         int target_token_id = -1,
         GPUDecoder* decoder = nullptr
@@ -142,6 +150,12 @@ private:
     void updateRecurrentState();
     void consolidateMemory();
     void routeSignals();
+
+    // Biological synchronous helpers
+    void phaseIntegration();      // Phase 1: All modules compute V_m
+    void phaseFiring();           // Phase 2: All modules generate spikes
+    void phaseRouting();          // Phase 3: Spikes travel via axons
+    void phasePlasticity();       // Phase 4: STDP and structural updates
     
     void updateConnectionPlasticity(float reward);
     
