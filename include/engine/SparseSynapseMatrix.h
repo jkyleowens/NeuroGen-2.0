@@ -291,13 +291,15 @@ cusparseStatus_t initializeCuSparseBSR(
 
 /**
  * @brief Perform sparse matrix-vector multiplication (synaptic propagation)
- * 
+ *
  * y = alpha * A * x + beta * y
  * where A = weight matrix, x = presynaptic spikes, y = postsynaptic currents
+ *
+ * Legacy version for binary (uint8_t) spikes.
  */
 cudaError_t sparseSynapticPropagation(
     const CSRSynapseMatrix& synapses,
-    const uint8_t* d_pre_spikes,    // Presynaptic spike vector
+    const uint8_t* d_pre_spikes,    // Presynaptic spike vector (binary)
     float* d_post_currents,          // Postsynaptic current accumulator
     float scale,                     // Scaling factor
     cusparseHandle_t handle,
@@ -305,12 +307,45 @@ cudaError_t sparseSynapticPropagation(
 );
 
 /**
- * @brief Block-sparse synaptic propagation (warp-optimized)
+ * @brief Perform sparse matrix-vector multiplication with weighted spikes
+ *
+ * y = alpha * A * x + beta * y
+ * where A = weight matrix, x = weighted spike outputs, y = postsynaptic currents
+ *
+ * === WEIGHTED SPIKE OUTPUT SUPPORT ===
+ * This version accepts float spike outputs directly, enabling:
+ * - Spike amplitude to influence synaptic current magnitude
+ * - No conversion overhead from uint8_t to float
+ * - More biologically realistic transmission (stronger spikes = more current)
+ */
+cudaError_t sparseSynapticPropagationWeighted(
+    const CSRSynapseMatrix& synapses,
+    const float* d_pre_spike_output,  // Presynaptic weighted spike outputs
+    float* d_post_currents,            // Postsynaptic current accumulator
+    float scale,                       // Scaling factor
+    cusparseHandle_t handle,
+    cudaStream_t stream = 0
+);
+
+/**
+ * @brief Block-sparse synaptic propagation (warp-optimized) - binary spikes
  */
 template<int BLOCK_SIZE>
 cudaError_t blockSparseSynapticPropagation(
     const BSRSynapseMatrix<BLOCK_SIZE>& synapses,
     const uint8_t* d_pre_spikes,
+    float* d_post_currents,
+    float scale,
+    cudaStream_t stream = 0
+);
+
+/**
+ * @brief Block-sparse synaptic propagation with weighted spikes
+ */
+template<int BLOCK_SIZE>
+cudaError_t blockSparseSynapticPropagationWeighted(
+    const BSRSynapseMatrix<BLOCK_SIZE>& synapses,
+    const float* d_pre_spike_output,  // Weighted spike outputs
     float* d_post_currents,
     float scale,
     cudaStream_t stream = 0
